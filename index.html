@@ -112,7 +112,7 @@
   // load pending claims + shift info
   const { data, error } = await supabase
     .from("shift_claims")
-    .select("id, status, created_at, shift_id, user_id, shifts(title, shift_when, shift_where)")
+    .select("id, status, created_at, shift_id, user_id, user_email, shifts(title, shift_when, shift_where)")
     .eq("status", "pending")
     .order("created_at", { ascending: false });
 
@@ -139,7 +139,7 @@
       <div style="color:#444; margin-top:4px;">${escapeHtml(s.shift_when || "")}</div>
       <div style="color:#666; margin-top:2px;">${escapeHtml(s.shift_where || "")}</div>
       <div style="color:#666; margin-top:8px; font-size:13px;">
-        Claimed by user: ${escapeHtml(c.user_id)}
+        Claimed by: ${escapeHtml(c.user_email || c.user_id)}
       </div>
       <div class="row" style="margin-top:10px;">
         <button class="secondary" data-approve="${c.id}">Approve</button>
