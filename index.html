@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>First Line EMS Employee Portal</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <style>
+    body {
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      background: #f5f6f8;
+      margin: 0;
+      padding: 0;
+    }
+    .container {
+      max-width: 900px;
+      margin: 40px auto;
+      padding: 20px;
+    }
+    .card {
+      background: #fff;
+      border-radius: 14px;
+      padding: 24px;
+      box-shadow: 0 10px 25px rgba(0,0,0,.08);
+    }
+    h1 {
+      margin-top: 0;
+      font-size: 24px;
+    }
+    input {
+      width: 100%;
+      padding: 12px;
+      margin: 8px 0;
+      border-radius: 10px;
+      border: 1px solid #ddd;
+      font-size: 16px;
+    }
+    button {
+      padding: 12px 16px;
+      border-radius: 10px;
+      border: none;
+      background: #111;
+      color: #fff;
+      font-size: 16px;
+      font-weight: 700;
+      cursor: pointer;
+      margin-top: 10px;
+    }
+    button.secondary {
+      background: #eaeaea;
+      color: #111;
+    }
+    .row {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .hidden {
+      display: none;
+    }
+    .error {
+      color: #b00020;
+      margin-top: 10px;
+      font-weight: 600;
+    }
+    .pill {
+      background: #eee;
+      border-radius: 999px;
+      padding: 6px 12px;
+      font-size: 13px;
+      font-weight: 700;
+    }
+    iframe {
+      width: 100%;
+      height: 70vh;
+      border: 1px solid #ddd;
+      border-radius: 12px;
+      margin-top: 12px;
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+
+  <!-- LOGIN -->
+  <div id="login" class="card">
+    <h1>First Line EMS – Employee Login</h1>
+    <input id="email" type="email" placeholder="Email" />
+    <input id="password" type="password" placeholder="Password" />
+    <button onclick="login()">Login</button>
+    <div id="loginError" class="error"></div>
+  </div>
+
+  <!-- PORTAL -->
+  <div id="portal" class="card hidden">
+    <div class="row" style="justify-content:space-between;align-items:center;">
+      <span class="pill" id="userEmail"></span>
+      <button class="secondary" onclick="logout()">Logout</button>
+    </div>
+
+    <h1>Employee Portal</h1>
+
+    <div class="row">
+      <button onclick="showSchedule()">Scheduling</button>
+      <button onclick="showAnnouncements()">Announcements</button>
+    </div>
+
+    <div id="content"></div>
+  </div>
+
+</div>
+
+<script>
+  const SUPABASE_URL = "https://lnevuelwsiewxdrmgckh.supabase.co";
+  const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxuZXZ1ZWx3c2lld3hkcm1nY2toIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA3MzMyNjgsImV4cCI6MjA4NjMwOTI2OH0.voDpAvnscFh9-e70-xV4UBxtcO-TwYbU6V0JRPUFFIs";
+
+  const supabase = supabaseJs.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  async function login() {
+    const email = document.getElementById("email").value;
+    const password = document.getElementById("password").value;
+
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password
+    });
+
+    if (error) {
+      document.getElementById("loginError").textContent = error.message;
+    }
+  }
+
+  async function logout() {
+    await supabase.auth.signOut();
+    location.reload();
+  }
+
+  function showSchedule() {
+    document.getElementById("content").innerHTML = `
+      <h3>Scheduling</h3>
+      <iframe src="https://REPLACE_WITH_YOUR_SCHEDULER"></iframe>
+    `;
+  }
+
+  function showAnnouncements() {
+    document.getElementById("content").innerHTML = `
+      <h3>Announcements</h3>
+      <p>Announcements will appear here.</p>
+    `;
+  }
+
+  supabase.auth.getSession().then(({ data }) => {
+    if (data.session) showPortal(data.session.user);
+  });
+
+  supabase.auth.onAuthStateChange((_event, session) => {
+    if (session) showPortal(session.user);
+  });
+
+  function showPortal(user) {
+    document.getElementById("login").classList.add("hidden");
+    document.getElementById("portal").classList.remove("hidden");
+    document.getElementById("userEmail").textContent = user.email;
+  }
+</script>
+
+</body>
+</html>
