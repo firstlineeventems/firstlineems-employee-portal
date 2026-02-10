@@ -150,12 +150,39 @@ async function showSchedule() {
       shiftList.appendChild(div);
     });
 
-    shiftList.querySelectorAll("[data-claim]").forEach(btn => {
-      btn.addEventListener("click", () => {
-        alert("Next step: claim requests + approvals.");
-      });
+ shiftList.querySelectorAll("[data-claim]").forEach(btn => {
+  btn.addEventListener("click", async () => {
+    const shiftId = btn.getAttribute("data-claim");
+
+    // get current user id
+    const { data: sess } = await supabase.auth.getSession();
+    const userId = sess?.session?.user?.id;
+
+    if (!userId) {
+      alert("You must be logged in.");
+      return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = "Claiming...";
+
+    // create claim
+    const { error } = await supabase.from("shift_claims").insert({
+      shift_id: shiftId,
+      user_id: userId,
+      status: "pending"
     });
-  }
+
+    if (error) {
+      btn.disabled = false;
+      btn.textContent = "Claim (next step)";
+      alert("Claim failed: " + error.message);
+      return;
+    }
+
+    btn.textContent = "Claim sent ✅";
+  });
+});
 
   document.getElementById("postShiftBtn").addEventListener("click", async () => {
     postErr.textContent = "";
