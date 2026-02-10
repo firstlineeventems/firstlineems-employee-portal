@@ -390,7 +390,21 @@ const { error } = await supabase.from("shift_claims").insert({
 
   // AUTO LOGIN
   const { data } = await supabase.auth.getSession();
-  if (data?.session?.user) showPortal(data.session.user);
+if (data?.session?.user) {
+  await showPortal(data.session.user);
+
+  // check admin role
+  const { data: role } = await supabase
+    .from("user_roles")
+    .select("is_admin")
+    .eq("user_id", data.session.user.id)
+    .single();
+
+  if (!role?.is_admin) {
+    // hide approvals for non-admins
+    document.getElementById("apprBtn").style.display = "none";
+  }
+}
 </script>
 
 </body>
