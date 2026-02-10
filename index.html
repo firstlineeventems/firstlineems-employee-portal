@@ -45,9 +45,10 @@
     <h1 style="margin-top:16px;">Employee Portal</h1>
 
     <div class="row">
-      <button id="schedBtn">Scheduling</button>
-      <button id="annBtn">Announcements</button>
-    </div>
+  <button id="schedBtn">Scheduling</button>
+  <button id="annBtn">Announcements</button>
+  <button id="apprBtn">Approvals</button>
+</div>
 
     <div id="content"></div>
   </div>
@@ -77,6 +78,7 @@
   const logoutBtn = document.getElementById("logoutBtn");
   const schedBtn = document.getElementById("schedBtn");
   const annBtn = document.getElementById("annBtn");
+  const apprBtn = document.getElementById("apprBtn");
 
   const loginError = document.getElementById("loginError");
   const emailEl = document.getElementById("email");
@@ -95,6 +97,87 @@
       <p>Announcements will appear here.</p>
     `;
   }
+
+  async function showApprovals() {
+  contentEl.innerHTML = `
+    <h3>Approvals</h3>
+    <p>Pending shift claims.</p>
+    <div id="claimList" style="display:grid; gap:10px;"></div>
+    <div id="claimErr" class="error"></div>
+  `;
+
+  const claimList = document.getElementById("claimList");
+  const claimErr = document.getElementById("claimErr");
+
+  // load pending claims + shift info
+  const { data, error } = await supabase
+    .from("shift_claims")
+    .select("id, status, created_at, shift_id, user_id, shifts(title, shift_when, shift_where)")
+    .eq("status", "pending")
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    claimErr.textContent = error.message;
+    return;
+  }
+
+  if (!data || data.length === 0) {
+    claimList.innerHTML = `<div class="pill">No pending claims</div>`;
+    return;
+  }
+
+  claimList.innerHTML = "";
+  data.forEach((c) => {
+    const s = c.shifts || {};
+    const div = document.createElement("div");
+    div.className = "card";
+    div.style.boxShadow = "none";
+    div.style.border = "1px solid #ddd";
+
+    div.innerHTML = `
+      <div style="font-weight:900;">${escapeHtml(s.title || "Shift")}</div>
+      <div style="color:#444; margin-top:4px;">${escapeHtml(s.shift_when || "")}</div>
+      <div style="color:#666; margin-top:2px;">${escapeHtml(s.shift_where || "")}</div>
+      <div style="color:#666; margin-top:8px; font-size:13px;">
+        Claimed by user: ${escapeHtml(c.user_id)}
+      </div>
+      <div class="row" style="margin-top:10px;">
+        <button class="secondary" data-approve="${c.id}">Approve</button>
+        <button class="secondary" data-deny="${c.id}">Deny</button>
+      </div>
+    `;
+    claimList.appendChild(div);
+  });
+
+  async function updateClaim(id, status) {
+    const { error } = await supabase
+      .from("shift_claims")
+      .update({ status })
+      .eq("id", id);
+
+    if (error) {
+      alert("Update failed: " + error.message);
+      return;
+    }
+    await showApprovals(); // refresh list
+  }
+
+  claimList.querySelectorAll("[data-approve]").forEach(btn => {
+    btn.addEventListener("click", () => updateClaim(btn.getAttribute("data-approve"), "approved"));
+  });
+  claimList.querySelectorAll("[data-deny]").forEach(btn => {
+    btn.addEventListener("click", () => updateClaim(btn.getAttribute("data-deny"), "denied"));
+  });
+}
+
+  apprBtn.addEventListener("click", async () => {
+  setDebug("Approvals clicked ✅");
+  try { 
+    await showApprovals(); 
+  } catch (e) { 
+    setDebug("Approvals error: " + (e?.message || e)); 
+  }
+});
 
   async function showSchedule() {
     contentEl.innerHTML = `
