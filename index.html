@@ -86,12 +86,94 @@
   const userEmailEl = document.getElementById("userEmail");
   const contentEl = document.getElementById("content");
 
-  function showSchedule() {
-    contentEl.innerHTML = `
-      <h3>Scheduling</h3>
-      <iframe src="https://REPLACE_WITH_YOUR_SCHEDULER"></iframe>
-    `;
+ function showSchedule() {
+  contentEl.innerHTML = `
+    <h3>Scheduling</h3>
+    <p>For now, this is your shift board. Next step we’ll connect it to Supabase so shifts save for everyone.</p>
+
+    <div class="card" style="box-shadow:none; border:1px solid #ddd; margin-top:12px;">
+      <h4 style="margin:0 0 10px 0;">Post a Shift (temporary)</h4>
+      <input id="shiftTitle" placeholder="Shift title (e.g., Camp trip EMT - Saturday)" />
+      <input id="shiftWhen" placeholder="When (e.g., Sat 9am–5pm)" />
+      <input id="shiftWhere" placeholder="Where (e.g., Six Flags NJ)" />
+      <button id="postShiftBtn">Post Shift</button>
+      <div class="muted" style="color:#666; font-size:13px; margin-top:8px;">
+        *Temporary: saves only on this device. Next step will make it shared for all employees.
+      </div>
+    </div>
+
+    <div style="margin-top:14px;">
+      <h4 style="margin:0 0 10px 0;">Available Shifts</h4>
+      <div id="shiftList" style="display:grid; gap:10px;"></div>
+    </div>
+  `;
+
+  // Temporary local-only storage
+  const KEY = "fl_shifts_local_v1";
+  const shiftList = document.getElementById("shiftList");
+
+  function load() {
+    const arr = JSON.parse(localStorage.getItem(KEY) || "[]");
+    shiftList.innerHTML = arr.length ? "" : `<div class="pill">No shifts posted yet</div>`;
+    arr.forEach((s, idx) => {
+      const div = document.createElement("div");
+      div.className = "card";
+      div.style.boxShadow = "none";
+      div.style.border = "1px solid #ddd";
+      div.innerHTML = `
+        <div style="font-weight:900;">${escapeHtml(s.title)}</div>
+        <div style="color:#444; margin-top:4px;">${escapeHtml(s.when)}</div>
+        <div style="color:#666; margin-top:2px;">${escapeHtml(s.where)}</div>
+        <div class="row" style="margin-top:10px;">
+          <button class="secondary" data-claim="${idx}">Claim (demo)</button>
+          <button class="secondary" data-del="${idx}">Delete</button>
+        </div>
+      `;
+      shiftList.appendChild(div);
+    });
+
+    // wire buttons
+    shiftList.querySelectorAll("[data-del]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const i = Number(btn.getAttribute("data-del"));
+        const arr = JSON.parse(localStorage.getItem(KEY) || "[]");
+        arr.splice(i, 1);
+        localStorage.setItem(KEY, JSON.stringify(arr));
+        load();
+      });
+    });
+
+    shiftList.querySelectorAll("[data-claim]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        alert("Claim request sent (demo). Next step we make this real + approvals.");
+      });
+    });
   }
+
+  document.getElementById("postShiftBtn").addEventListener("click", () => {
+    const title = document.getElementById("shiftTitle").value.trim();
+    const when = document.getElementById("shiftWhen").value.trim();
+    const where = document.getElementById("shiftWhere").value.trim();
+    if (!title || !when) return alert("Enter at least a title + when.");
+
+    const arr = JSON.parse(localStorage.getItem(KEY) || "[]");
+    arr.unshift({ title, when, where });
+    localStorage.setItem(KEY, JSON.stringify(arr));
+
+    document.getElementById("shiftTitle").value = "";
+    document.getElementById("shiftWhen").value = "";
+    document.getElementById("shiftWhere").value = "";
+    load();
+  });
+
+  load();
+}
+
+function escapeHtml(str) {
+  return String(str).replace(/[&<>"']/g, (m) => ({
+    "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"
+  }[m]));
+}
 
   function showAnnouncements() {
     contentEl.innerHTML = `
