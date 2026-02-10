@@ -90,6 +90,7 @@
     <input id="email" type="email" placeholder="Email" />
     <input id="password" type="password" placeholder="Password" />
     <button id="loginBtn">Login</button>
+    <div id="debug" class="error" style="color:#111;"></div>
     <div id="loginError" class="error"></div>
   </div>
 
@@ -214,4 +215,12 @@
   supabase.auth.onAuthStateChange((_event, session) => {
     if (session?.user) showPortal(session.user);
   });
+  window.addEventListener("error", (e) => {
+  const dbg = document.getElementById("debug");
+  if (dbg) dbg.textContent = "JS error: " + (e?.message || e);
+});
 </script>
+  try {
+  document.getElementById("debug").textContent = "JS loaded ✅";
+} catch (e) {}
+
