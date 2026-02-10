@@ -4,7 +4,6 @@
   <meta charset="UTF-8" />
   <title>First Line EMS Employee Portal</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
   <style>
     body {
@@ -219,8 +218,77 @@
   const dbg = document.getElementById("debug");
   if (dbg) dbg.textContent = "JS error: " + (e?.message || e);
 });
-</script>
-  try {
-  document.getElementById("debug").textContent = "JS loaded ✅";
-} catch (e) {}
+<script type="module">
+  import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
 
+  const SUPABASE_URL = "https://lnevuelwsiewxdrmgckh.supabase.co";
+  const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxuZXZ1ZWx3c2lld3hkcm1nY2toIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA3MzMyNjgsImV4cCI6MjA4NjMwOTI2OH0.voDpAvnscFh9-e70-xV4UBxtcO-TwYbU6V0JRPUFFIs";
+
+  const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  const loginEl = document.getElementById("login");
+  const portalEl = document.getElementById("portal");
+  const loginErrorEl = document.getElementById("loginError");
+  const emailEl = document.getElementById("email");
+  const passwordEl = document.getElementById("password");
+  const userEmailEl = document.getElementById("userEmail");
+  const contentEl = document.getElementById("content");
+  const loginBtn = document.getElementById("loginBtn");
+
+  loginBtn.addEventListener("click", async () => {
+    loginErrorEl.textContent = "";
+
+    const email = emailEl.value.trim();
+    const password = passwordEl.value.trim();
+
+    if (!email || !password) {
+      loginErrorEl.textContent = "Enter email and password.";
+      return;
+    }
+
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password
+    });
+
+    if (error) {
+      loginErrorEl.textContent = error.message;
+      return;
+    }
+
+    showPortal(data.user);
+  });
+
+  async function logout() {
+    await supabase.auth.signOut();
+    location.reload();
+  }
+
+  function showSchedule() {
+    contentEl.innerHTML = `
+      <h3>Scheduling</h3>
+      <iframe src="https://REPLACE_WITH_YOUR_SCHEDULER"></iframe>
+    `;
+  }
+
+  function showAnnouncements() {
+    contentEl.innerHTML = `
+      <h3>Announcements</h3>
+      <p>Announcements will appear here.</p>
+    `;
+  }
+
+  function showPortal(user) {
+    loginEl.classList.add("hidden");
+    portalEl.classList.remove("hidden");
+    userEmailEl.textContent = user.email;
+    showSchedule();
+  }
+
+  window.logout = logout;
+  window.showSchedule = showSchedule;
+  window.showAnnouncements = showAnnouncements;
+
+  const { data } = await supabase.auth.getSession();
+  if (data?.session?.user) showPortal(data.session.user);
+</script>
