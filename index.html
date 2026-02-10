@@ -12,12 +12,12 @@
     input { width:100%; padding:12px; margin:8px 0; border-radius:10px; border:1px solid #ddd; font-size:16px; }
     button { padding:12px 16px; border-radius:10px; border:none; background:#111; color:#fff; font-size:16px; font-weight:700; cursor:pointer; margin-top:10px; }
     button.secondary { background:#eaeaea; color:#111; }
+    button:disabled { opacity:.55; cursor:not-allowed; }
     .row { display:flex; gap:12px; flex-wrap:wrap; align-items:center; }
     .hidden { display:none; }
     .error { color:#b00020; margin-top:10px; font-weight:600; }
     .pill { background:#eee; border-radius:999px; padding:6px 12px; font-size:13px; font-weight:700; }
-    iframe { width:100%; height:70vh; border:1px solid #ddd; border-radius:12px; margin-top:12px; background:#fff; }
-    .debug { margin-top:10px; font-weight:700; color:#111; }
+    .debug { margin-top:10px; font-weight:800; color:#111; }
   </style>
 </head>
 <body>
@@ -57,21 +57,19 @@
 <script type="module">
   import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
 
-  // ====== YOUR SUPABASE VALUES ======
+  // ====== SUPABASE ======
   const SUPABASE_URL = "https://lnevuelwsiewxdrmgckh.supabase.co";
   const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxuZXZ1ZWx3c2lld3hkcm1nY2toIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA3MzMyNjgsImV4cCI6MjA4NjMwOTI2OH0.voDpAvnscFh9-e70-xV4UBxtcO-TwYbU6V0JRPUFFIs";
-  // =================================
+  const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
+  // ====== UI / DEBUG ======
   const debugEl = document.getElementById("debug");
   const setDebug = (msg) => { debugEl.textContent = msg || ""; };
 
-  // Catch any errors and show them on-screen (no silent failures)
   window.addEventListener("error", (e) => setDebug("JS error: " + (e?.message || e)));
   window.addEventListener("unhandledrejection", (e) => setDebug("Promise error: " + (e?.reason?.message || e?.reason || e)));
 
   setDebug("JS loaded ✅");
-
-  const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
   const loginEl = document.getElementById("login");
   const portalEl = document.getElementById("portal");
@@ -86,146 +84,147 @@
   const userEmailEl = document.getElementById("userEmail");
   const contentEl = document.getElementById("content");
 
-async function showSchedule() {
-  contentEl.innerHTML = `
-    <h3>Scheduling</h3>
-    <p>Shared shift board (stored in Supabase).</p>
-
-    <div class="card" style="box-shadow:none; border:1px solid #ddd; margin-top:12px;">
-      <h4 style="margin:0 0 10px 0;">Post a Shift</h4>
-      <input id="shiftTitle" placeholder="Shift title (e.g., Camp trip EMT - Saturday)" />
-      <input id="shiftWhen" placeholder="When (e.g., Sat 9am–5pm)" />
-      <input id="shiftWhere" placeholder="Where (e.g., Six Flags NJ)" />
-      <button id="postShiftBtn">Post Shift</button>
-      <div id="postErr" class="error"></div>
-    </div>
-
-    <div style="margin-top:14px;">
-      <h4 style="margin:0 0 10px 0;">Available Shifts</h4>
-      <div id="shiftList" style="display:grid; gap:10px;"></div>
-    </div>
-  `;
-
-  const shiftList = document.getElementById("shiftList");
-  const postErr = document.getElementById("postErr");
-
   const escapeHtml = (str) =>
     String(str).replace(/[&<>"']/g, (m) => ({
       "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"
     }[m]));
-
-  async function loadShifts() {
-    shiftList.innerHTML = `<div class="pill">Loading…</div>`;
-
-    const { data, error } = await supabase
-      .from("shifts")
-      .select("*")
-      .order("created_at", { ascending: false });
-
-    if (error) {
-      shiftList.innerHTML = `<div class="error">Error loading shifts: ${escapeHtml(error.message)}</div>`;
-      return;
-    }
-
-    if (!data || data.length === 0) {
-      shiftList.innerHTML = `<div class="pill">No shifts posted yet</div>`;
-      return;
-    }
-
-    shiftList.innerHTML = "";
-    data.forEach((s) => {
-      const div = document.createElement("div");
-      div.className = "card";
-      div.style.boxShadow = "none";
-      div.style.border = "1px solid #ddd";
-
-      div.innerHTML = `
-        <div style="font-weight:900;">${escapeHtml(s.title)}</div>
-        <div style="color:#444; margin-top:4px;">${escapeHtml(s.shift_when)}</div>
-        <div style="color:#666; margin-top:2px;">${escapeHtml(s.shift_where || "")}</div>
-        <div class="row" style="margin-top:10px;">
-          <button class="secondary" data-claim="${s.id}">Claim (next step)</button>
-        </div>
-      `;
-      shiftList.appendChild(div);
-    });
-
- shiftList.querySelectorAll("[data-claim]").forEach(btn => {
-  btn.addEventListener("click", async () => {
-    const shiftId = btn.getAttribute("data-claim");
-
-    // get current user id
-    const { data: sess } = await supabase.auth.getSession();
-    const userId = sess?.session?.user?.id;
-
-    if (!userId) {
-      alert("You must be logged in.");
-      return;
-    }
-
-    btn.disabled = true;
-    btn.textContent = "Claiming...";
-
-    // create claim
-    const { error } = await supabase.from("shift_claims").insert({
-      shift_id: shiftId,
-      user_id: userId,
-      status: "pending"
-    });
-
-    if (error) {
-      btn.disabled = false;
-      btn.textContent = "Claim (next step)";
-      alert("Claim failed: " + error.message);
-      return;
-    }
-
-    btn.textContent = "Claim sent ✅";
-  });
-});
-
-  document.getElementById("postShiftBtn").addEventListener("click", async () => {
-    postErr.textContent = "";
-
-    const title = document.getElementById("shiftTitle").value.trim();
-    const shift_when = document.getElementById("shiftWhen").value.trim();
-    const shift_where = document.getElementById("shiftWhere").value.trim();
-
-    if (!title || !shift_when) {
-      postErr.textContent = "Enter at least a title + when.";
-      return;
-    }
-
-    const { data: sess } = await supabase.auth.getSession();
-    const userId = sess?.session?.user?.id || null;
-
-    const { error } = await supabase.from("shifts").insert({
-      title,
-      shift_when,
-      shift_where,
-      created_by: userId
-    });
-
-    if (error) {
-      postErr.textContent = error.message;
-      return;
-    }
-
-    document.getElementById("shiftTitle").value = "";
-    document.getElementById("shiftWhen").value = "";
-    document.getElementById("shiftWhere").value = "";
-
-    await loadShifts();
-  });
-
-  await loadShifts();
-}
 
   function showAnnouncements() {
     contentEl.innerHTML = `
       <h3>Announcements</h3>
       <p>Announcements will appear here.</p>
     `;
+  }
+
+  async function showSchedule() {
+    contentEl.innerHTML = `
+      <h3>Scheduling</h3>
+      <p>Shared shift board (stored in Supabase).</p>
+
+      <div class="card" style="box-shadow:none; border:1px solid #ddd; margin-top:12px;">
+        <h4 style="margin:0 0 10px 0;">Post a Shift</h4>
+        <input id="shiftTitle" placeholder="Shift title (e.g., Camp trip EMT - Saturday)" />
+        <input id="shiftWhen" placeholder="When (e.g., Sat 9am–5pm)" />
+        <input id="shiftWhere" placeholder="Where (e.g., Six Flags NJ)" />
+        <button id="postShiftBtn">Post Shift</button>
+        <div id="postErr" class="error"></div>
+      </div>
+
+      <div style="margin-top:14px;">
+        <h4 style="margin:0 0 10px 0;">Available Shifts</h4>
+        <div id="shiftList" style="display:grid; gap:10px;"></div>
+      </div>
+    `;
+
+    const shiftList = document.getElementById("shiftList");
+    const postErr = document.getElementById("postErr");
+
+    async function loadShifts() {
+      shiftList.innerHTML = `<div class="pill">Loading…</div>`;
+
+      const { data, error } = await supabase
+        .from("shifts")
+        .select("*")
+        .order("created_at", { ascending: false });
+
+      if (error) {
+        shiftList.innerHTML = `<div class="error">Error loading shifts: ${escapeHtml(error.message)}</div>`;
+        return;
+      }
+
+      if (!data || data.length === 0) {
+        shiftList.innerHTML = `<div class="pill">No shifts posted yet</div>`;
+        return;
+      }
+
+      shiftList.innerHTML = "";
+      data.forEach((s) => {
+        const div = document.createElement("div");
+        div.className = "card";
+        div.style.boxShadow = "none";
+        div.style.border = "1px solid #ddd";
+
+        div.innerHTML = `
+          <div style="font-weight:900;">${escapeHtml(s.title)}</div>
+          <div style="color:#444; margin-top:4px;">${escapeHtml(s.shift_when)}</div>
+          <div style="color:#666; margin-top:2px;">${escapeHtml(s.shift_where || "")}</div>
+          <div class="row" style="margin-top:10px;">
+            <button class="secondary" data-claim="${s.id}">Claim</button>
+          </div>
+        `;
+        shiftList.appendChild(div);
+      });
+
+      // Claim buttons -> insert into shift_claims
+      shiftList.querySelectorAll("[data-claim]").forEach(btn => {
+        btn.addEventListener("click", async () => {
+          const shiftId = btn.getAttribute("data-claim");
+
+          const { data: sess } = await supabase.auth.getSession();
+          const userId = sess?.session?.user?.id;
+
+          if (!userId) {
+            alert("You must be logged in.");
+            return;
+          }
+
+          btn.disabled = true;
+          const oldText = btn.textContent;
+          btn.textContent = "Claiming...";
+
+          const { error } = await supabase.from("shift_claims").insert({
+            shift_id: shiftId,
+            user_id: userId,
+            status: "pending"
+          });
+
+          if (error) {
+            btn.disabled = false;
+            btn.textContent = oldText;
+            alert("Claim failed: " + error.message);
+            return;
+          }
+
+          btn.textContent = "Claim sent ✅";
+        });
+      });
+    }
+
+    document.getElementById("postShiftBtn").addEventListener("click", async () => {
+      postErr.textContent = "";
+
+      const title = document.getElementById("shiftTitle").value.trim();
+      const shift_when = document.getElementById("shiftWhen").value.trim();
+      const shift_where = document.getElementById("shiftWhere").value.trim();
+
+      if (!title || !shift_when) {
+        postErr.textContent = "Enter at least a title + when.";
+        return;
+      }
+
+      const { data: sess } = await supabase.auth.getSession();
+      const userId = sess?.session?.user?.id || null;
+
+      const { error } = await supabase.from("shifts").insert({
+        title,
+        shift_when,
+        shift_where,
+        created_by: userId
+      });
+
+      if (error) {
+        postErr.textContent = error.message;
+        return;
+      }
+
+      document.getElementById("shiftTitle").value = "";
+      document.getElementById("shiftWhen").value = "";
+      document.getElementById("shiftWhere").value = "";
+
+      await loadShifts();
+    });
+
+    await loadShifts();
   }
 
   function showPortal(user) {
@@ -235,6 +234,7 @@ async function showSchedule() {
     showSchedule();
   }
 
+  // LOGIN
   loginBtn.addEventListener("click", async () => {
     setDebug("Login clicked ✅");
     loginError.textContent = "";
@@ -257,30 +257,24 @@ async function showSchedule() {
     showPortal(data.user);
   });
 
+  // LOGOUT
   logoutBtn.addEventListener("click", async () => {
     await supabase.auth.signOut();
     location.reload();
   });
 
+  // NAV BUTTONS
   schedBtn.addEventListener("click", async () => {
-  setDebug("Scheduling clicked ✅");
-  try {
-    await showSchedule();
-  } catch (e) {
-    setDebug("Scheduling error: " + (e?.message || e));
-  }
-});
+    setDebug("Scheduling clicked ✅");
+    try { await showSchedule(); } catch (e) { setDebug("Scheduling error: " + (e?.message || e)); }
+  });
 
-annBtn.addEventListener("click", () => {
-  setDebug("Announcements clicked ✅");
-  try {
-    showAnnouncements();
-  } catch (e) {
-    setDebug("Announcements error: " + (e?.message || e));
-  }
-});
+  annBtn.addEventListener("click", () => {
+    setDebug("Announcements clicked ✅");
+    try { showAnnouncements(); } catch (e) { setDebug("Announcements error: " + (e?.message || e)); }
+  });
 
-  // Auto-login if already signed in
+  // AUTO LOGIN
   const { data } = await supabase.auth.getSession();
   if (data?.session?.user) showPortal(data.session.user);
 </script>
