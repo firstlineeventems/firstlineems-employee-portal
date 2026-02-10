@@ -86,36 +86,10 @@
   const userEmailEl = document.getElementById("userEmail");
   const contentEl = document.getElementById("content");
 
- function showSchedule() {
-  contentEl.innerHTML = `
-    <h3>Scheduling</h3>
-    <p>For now, this is your shift board. Next step we’ll connect it to Supabase so shifts save for everyone.</p>
-
-    <div class="card" style="box-shadow:none; border:1px solid #ddd; margin-top:12px;">
-      <h4 style="margin:0 0 10px 0;">Post a Shift (temporary)</h4>
-      <input id="shiftTitle" placeholder="Shift title (e.g., Camp trip EMT - Saturday)" />
-      <input id="shiftWhen" placeholder="When (e.g., Sat 9am–5pm)" />
-      <input id="shiftWhere" placeholder="Where (e.g., Six Flags NJ)" />
-      <button id="postShiftBtn">Post Shift</button>
-      <div class="muted" style="color:#666; font-size:13px; margin-top:8px;">
-        *Temporary: saves only on this device. Next step will make it shared for all employees.
-      </div>
-    </div>
-
-    <div style="margin-top:14px;">
-      <h4 style="margin:0 0 10px 0;">Available Shifts</h4>
-      <div id="shiftList" style="display:grid; gap:10px;"></div>
-    </div>
-  `;
-
-  // Temporary local-only storage
-  const KEY = "fl_shifts_local_v1";
-  const shiftList = document.getElementById("shiftList");
-
 async function showSchedule() {
   contentEl.innerHTML = `
     <h3>Scheduling</h3>
-    <p>Now this shift board is shared. Any logged-in employee will see the same shifts.</p>
+    <p>Shared shift board (stored in Supabase).</p>
 
     <div class="card" style="box-shadow:none; border:1px solid #ddd; margin-top:12px;">
       <h4 style="margin:0 0 10px 0;">Post a Shift</h4>
@@ -123,7 +97,7 @@ async function showSchedule() {
       <input id="shiftWhen" placeholder="When (e.g., Sat 9am–5pm)" />
       <input id="shiftWhere" placeholder="Where (e.g., Six Flags NJ)" />
       <button id="postShiftBtn">Post Shift</button>
-      <div id="postErr" style="color:#b00020; margin-top:10px; font-weight:600;"></div>
+      <div id="postErr" class="error"></div>
     </div>
 
     <div style="margin-top:14px;">
@@ -134,6 +108,11 @@ async function showSchedule() {
 
   const shiftList = document.getElementById("shiftList");
   const postErr = document.getElementById("postErr");
+
+  const escapeHtml = (str) =>
+    String(str).replace(/[&<>"']/g, (m) => ({
+      "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"
+    }[m]));
 
   async function loadShifts() {
     shiftList.innerHTML = `<div class="pill">Loading…</div>`;
@@ -171,7 +150,6 @@ async function showSchedule() {
       shiftList.appendChild(div);
     });
 
-    // Claim buttons (we’ll make real next step)
     shiftList.querySelectorAll("[data-claim]").forEach(btn => {
       btn.addEventListener("click", () => {
         alert("Next step: claim requests + approvals.");
@@ -191,7 +169,6 @@ async function showSchedule() {
       return;
     }
 
-    // get current user id
     const { data: sess } = await supabase.auth.getSession();
     const userId = sess?.session?.user?.id || null;
 
@@ -215,31 +192,6 @@ async function showSchedule() {
   });
 
   await loadShifts();
-}
-
-  document.getElementById("postShiftBtn").addEventListener("click", () => {
-    const title = document.getElementById("shiftTitle").value.trim();
-    const when = document.getElementById("shiftWhen").value.trim();
-    const where = document.getElementById("shiftWhere").value.trim();
-    if (!title || !when) return alert("Enter at least a title + when.");
-
-    const arr = JSON.parse(localStorage.getItem(KEY) || "[]");
-    arr.unshift({ title, when, where });
-    localStorage.setItem(KEY, JSON.stringify(arr));
-
-    document.getElementById("shiftTitle").value = "";
-    document.getElementById("shiftWhen").value = "";
-    document.getElementById("shiftWhere").value = "";
-    load();
-  });
-
-  load();
-}
-
-function escapeHtml(str) {
-  return String(str).replace(/[&<>"']/g, (m) => ({
-    "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"
-  }[m]));
 }
 
   function showAnnouncements() {
