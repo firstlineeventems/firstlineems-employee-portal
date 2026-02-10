@@ -199,10 +199,23 @@ async function updateClaim(id, status) {
 
   apprBtn.addEventListener("click", async () => {
   setDebug("Approvals clicked ✅");
-  try { 
-    await showApprovals(); 
-  } catch (e) { 
-    setDebug("Approvals error: " + (e?.message || e)); 
+
+  const { data: sess } = await supabase.auth.getSession();
+  const { data: role } = await supabase
+    .from("user_roles")
+    .select("is_admin")
+    .eq("user_id", sess.session.user.id)
+    .single();
+
+  if (!role?.is_admin) {
+    alert("Admins only.");
+    return;
+  }
+
+  try {
+    await showApprovals();
+  } catch (e) {
+    setDebug("Approvals error: " + (e?.message || e));
   }
 });
 
