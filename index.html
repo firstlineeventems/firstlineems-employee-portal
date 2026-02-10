@@ -283,8 +283,23 @@ function escapeHtml(str) {
     location.reload();
   });
 
-  schedBtn.addEventListener("click", showSchedule);
-  annBtn.addEventListener("click", showAnnouncements);
+  schedBtn.addEventListener("click", async () => {
+  setDebug("Scheduling clicked ✅");
+  try {
+    await showSchedule();
+  } catch (e) {
+    setDebug("Scheduling error: " + (e?.message || e));
+  }
+});
+
+annBtn.addEventListener("click", () => {
+  setDebug("Announcements clicked ✅");
+  try {
+    showAnnouncements();
+  } catch (e) {
+    setDebug("Announcements error: " + (e?.message || e));
+  }
+});
 
   // Auto-login if already signed in
   const { data } = await supabase.auth.getSession();
