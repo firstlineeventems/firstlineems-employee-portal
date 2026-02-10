@@ -233,9 +233,10 @@ async function updateClaim(id, status) {
       shiftList.innerHTML = `<div class="pill">Loading…</div>`;
 
       const { data, error } = await supabase
-        .from("shifts")
-        .select("*")
-        .order("created_at", { ascending: false });
+  .from("shifts")
+  .select("*")
+  .is("filled_by", null)
+  .order("created_at", { ascending: false });
 
       if (error) {
         shiftList.innerHTML = `<div class="error">Error loading shifts: ${escapeHtml(error.message)}</div>`;
