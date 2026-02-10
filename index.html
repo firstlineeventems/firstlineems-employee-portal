@@ -220,6 +220,57 @@ async function updateClaim(id, status) {
     setDebug("Approvals error: " + (e?.message || e));
   }
 });
+  
+async function showMyShifts() {
+  contentEl.innerHTML = `
+    <h3>My Shifts</h3>
+    <div id="myList" style="display:grid; gap:10px;"></div>
+    <div id="myErr" class="error"></div>
+  `;
+
+  const myList = document.getElementById("myList");
+  const myErr = document.getElementById("myErr");
+
+  const { data: sess } = await supabase.auth.getSession();
+  const userId = sess?.session?.user?.id;
+
+  if (!userId) {
+    myErr.textContent = "Not logged in.";
+    return;
+  }
+
+  const { data, error } = await supabase
+    .from("shifts")
+    .select("*")
+    .eq("filled_by", userId)
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    myErr.textContent = error.message;
+    return;
+  }
+
+  if (!data || data.length === 0) {
+    myList.innerHTML = `<div class="pill">No assigned shifts yet</div>`;
+    return;
+  }
+
+  myList.innerHTML = "";
+  data.forEach((s) => {
+    const div = document.createElement("div");
+    div.className = "card";
+    div.style.boxShadow = "none";
+    div.style.border = "1px solid #ddd";
+
+    div.innerHTML = `
+      <div style="font-weight:900;">${escapeHtml(s.title)}</div>
+      <div style="color:#444; margin-top:4px;">${escapeHtml(s.shift_when)}</div>
+      <div style="color:#666; margin-top:2px;">${escapeHtml(s.shift_where || "")}</div>
+      <div class="pill" style="margin-top:10px; display:inline-block;">Assigned ✅</div>
+    `;
+    myList.appendChild(div);
+  });
+}
 
   async function showSchedule() {
     contentEl.innerHTML = `
