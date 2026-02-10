@@ -454,6 +454,15 @@ const { error } = await supabase.from("shift_claims").insert({
     try { showAnnouncements(); } catch (e) { setDebug("Announcements error: " + (e?.message || e)); }
   });
 
+  myBtn.addEventListener("click", async () => {
+  setDebug("My Shifts clicked ✅");
+  try { 
+    await showMyShifts(); 
+  } catch (e) { 
+    setDebug("My Shifts error: " + (e?.message || e)); 
+  }
+});
+
   // AUTO LOGIN
   const { data } = await supabase.auth.getSession();
 if (data?.session?.user) {
