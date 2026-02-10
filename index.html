@@ -89,7 +89,7 @@
     <h1>First Line EMS – Employee Login</h1>
     <input id="email" type="email" placeholder="Email" />
     <input id="password" type="password" placeholder="Password" />
-    <button onclick="login()">Login</button>
+    <button id="loginBtn">Login</button>
     <div id="loginError" class="error"></div>
   </div>
 
@@ -116,55 +116,102 @@
   const SUPABASE_URL = "https://lnevuelwsiewxdrmgckh.supabase.co";
   const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxuZXZ1ZWx3c2lld3hkcm1nY2toIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA3MzMyNjgsImV4cCI6MjA4NjMwOTI2OH0.voDpAvnscFh9-e70-xV4UBxtcO-TwYbU6V0JRPUFFIs";
 
+  const loginEl = document.getElementById("login");
+  const portalEl = document.getElementById("portal");
+  const loginErrorEl = document.getElementById("loginError");
+  const emailEl = document.getElementById("email");
+  const passwordEl = document.getElementById("password");
+  const userEmailEl = document.getElementById("userEmail");
+  const contentEl = document.getElementById("content");
+  const loginBtn = document.getElementById("loginBtn");
+
+  function setError(msg) {
+    loginErrorEl.textContent = msg || "";
+  }
+
+  // HARD CHECK: show a real message if Supabase didn't load
+  if (!window.supabase || typeof window.supabase.createClient !== "function") {
+    setError("Supabase library did not load. Refresh the page. If it keeps happening, tell Moshe to check CDN/CSP.");
+    loginBtn.disabled = true;
+  }
+
   const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-  async function login() {
-    const email = document.getElementById("email").value;
-    const password = document.getElementById("password").value;
+  async function doLogin() {
+    setError("");
 
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password
-    });
+    const email = (emailEl.value || "").trim();
+    const password = (passwordEl.value || "").trim();
 
-    if (error) {
-      document.getElementById("loginError").textContent = error.message;
+    if (!email || !password) {
+      setError("Enter email and password.");
+      return;
+    }
+
+    loginBtn.disabled = true;
+    loginBtn.textContent = "Logging in...";
+
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) {
+        setError(error.message);
+        return;
+      }
+      if (data?.session?.user) {
+        showPortal(data.session.user);
+      } else {
+        setError("No session returned. Try again.");
+      }
+    } catch (e) {
+      setError("Login failed: " + (e?.message || e));
+    } finally {
+      loginBtn.disabled = false;
+      loginBtn.textContent = "Login";
     }
   }
 
-  async function logout() {
+  async function doLogout() {
     await supabase.auth.signOut();
     location.reload();
   }
 
   function showSchedule() {
-    document.getElementById("content").innerHTML = `
+    contentEl.innerHTML = `
       <h3>Scheduling</h3>
       <iframe src="https://REPLACE_WITH_YOUR_SCHEDULER"></iframe>
     `;
   }
 
   function showAnnouncements() {
-    document.getElementById("content").innerHTML = `
+    contentEl.innerHTML = `
       <h3>Announcements</h3>
       <p>Announcements will appear here.</p>
     `;
   }
 
+  function showPortal(user) {
+    loginEl.classList.add("hidden");
+    portalEl.classList.remove("hidden");
+    userEmailEl.textContent = user.email;
+
+    // default view
+    showSchedule();
+  }
+
+  // Wire buttons with event listeners (never "does nothing")
+  loginBtn.addEventListener("click", doLogin);
+
+  // Replace inline onclicks by attaching to window so your existing buttons still work
+  window.logout = doLogout;
+  window.showSchedule = showSchedule;
+  window.showAnnouncements = showAnnouncements;
+
+  // If already logged in, skip login screen
   supabase.auth.getSession().then(({ data }) => {
-    if (data.session) showPortal(data.session.user);
+    if (data?.session?.user) showPortal(data.session.user);
   });
 
   supabase.auth.onAuthStateChange((_event, session) => {
-    if (session) showPortal(session.user);
+    if (session?.user) showPortal(session.user);
   });
-
-  function showPortal(user) {
-    document.getElementById("login").classList.add("hidden");
-    document.getElementById("portal").classList.remove("hidden");
-    document.getElementById("userEmail").textContent = user.email;
-  }
 </script>
-
-</body>
-</html>
