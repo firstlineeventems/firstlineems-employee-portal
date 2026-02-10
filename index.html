@@ -149,18 +149,45 @@
     claimList.appendChild(div);
   });
 
-  async function updateClaim(id, status) {
-    const { error } = await supabase
-      .from("shift_claims")
-      .update({ status })
-      .eq("id", id);
+async function updateClaim(id, status) {
+  // Get the claim so we know shift_id + user_id
+  const { data: claim, error: readErr } = await supabase
+    .from("shift_claims")
+    .select("id, shift_id, user_id")
+    .eq("id", id)
+    .single();
 
-    if (error) {
-      alert("Update failed: " + error.message);
+  if (readErr) {
+    alert("Could not read claim: " + readErr.message);
+    return;
+  }
+
+  // Update claim status
+  const { error: updErr } = await supabase
+    .from("shift_claims")
+    .update({ status })
+    .eq("id", id);
+
+  if (updErr) {
+    alert("Claim update failed: " + updErr.message);
+    return;
+  }
+
+  // If approved, fill the shift
+  if (status === "approved") {
+    const { error: fillErr } = await supabase
+      .from("shifts")
+      .update({ filled_by: claim.user_id })
+      .eq("id", claim.shift_id);
+
+    if (fillErr) {
+      alert("Shift fill failed: " + fillErr.message);
       return;
     }
-    await showApprovals(); // refresh list
   }
+
+  await showApprovals(); // refresh list
+}
 
   claimList.querySelectorAll("[data-approve]").forEach(btn => {
     btn.addEventListener("click", () => updateClaim(btn.getAttribute("data-approve"), "approved"));
