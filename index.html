@@ -108,6 +108,24 @@
     <div id="claimErr" class="error"></div>
   `;
 
+    const postShiftBox = document.getElementById("postShiftBox");
+
+// check admin role
+const { data: sess } = await supabase.auth.getSession();
+const userId = sess?.session?.user?.id;
+
+if (userId) {
+  const { data: role } = await supabase
+    .from("user_roles")
+    .select("is_admin")
+    .eq("user_id", userId)
+    .single();
+
+  if (!role?.is_admin) {
+    postShiftBox.style.display = "none";
+  }
+}
+
   const claimList = document.getElementById("claimList");
   const claimErr = document.getElementById("claimErr");
 
