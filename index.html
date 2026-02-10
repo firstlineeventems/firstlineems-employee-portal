@@ -112,43 +112,110 @@
   const KEY = "fl_shifts_local_v1";
   const shiftList = document.getElementById("shiftList");
 
-  function load() {
-    const arr = JSON.parse(localStorage.getItem(KEY) || "[]");
-    shiftList.innerHTML = arr.length ? "" : `<div class="pill">No shifts posted yet</div>`;
-    arr.forEach((s, idx) => {
+async function showSchedule() {
+  contentEl.innerHTML = `
+    <h3>Scheduling</h3>
+    <p>Now this shift board is shared. Any logged-in employee will see the same shifts.</p>
+
+    <div class="card" style="box-shadow:none; border:1px solid #ddd; margin-top:12px;">
+      <h4 style="margin:0 0 10px 0;">Post a Shift</h4>
+      <input id="shiftTitle" placeholder="Shift title (e.g., Camp trip EMT - Saturday)" />
+      <input id="shiftWhen" placeholder="When (e.g., Sat 9am–5pm)" />
+      <input id="shiftWhere" placeholder="Where (e.g., Six Flags NJ)" />
+      <button id="postShiftBtn">Post Shift</button>
+      <div id="postErr" style="color:#b00020; margin-top:10px; font-weight:600;"></div>
+    </div>
+
+    <div style="margin-top:14px;">
+      <h4 style="margin:0 0 10px 0;">Available Shifts</h4>
+      <div id="shiftList" style="display:grid; gap:10px;"></div>
+    </div>
+  `;
+
+  const shiftList = document.getElementById("shiftList");
+  const postErr = document.getElementById("postErr");
+
+  async function loadShifts() {
+    shiftList.innerHTML = `<div class="pill">Loading…</div>`;
+
+    const { data, error } = await supabase
+      .from("shifts")
+      .select("*")
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      shiftList.innerHTML = `<div class="error">Error loading shifts: ${escapeHtml(error.message)}</div>`;
+      return;
+    }
+
+    if (!data || data.length === 0) {
+      shiftList.innerHTML = `<div class="pill">No shifts posted yet</div>`;
+      return;
+    }
+
+    shiftList.innerHTML = "";
+    data.forEach((s) => {
       const div = document.createElement("div");
       div.className = "card";
       div.style.boxShadow = "none";
       div.style.border = "1px solid #ddd";
+
       div.innerHTML = `
         <div style="font-weight:900;">${escapeHtml(s.title)}</div>
-        <div style="color:#444; margin-top:4px;">${escapeHtml(s.when)}</div>
-        <div style="color:#666; margin-top:2px;">${escapeHtml(s.where)}</div>
+        <div style="color:#444; margin-top:4px;">${escapeHtml(s.shift_when)}</div>
+        <div style="color:#666; margin-top:2px;">${escapeHtml(s.shift_where || "")}</div>
         <div class="row" style="margin-top:10px;">
-          <button class="secondary" data-claim="${idx}">Claim (demo)</button>
-          <button class="secondary" data-del="${idx}">Delete</button>
+          <button class="secondary" data-claim="${s.id}">Claim (next step)</button>
         </div>
       `;
       shiftList.appendChild(div);
     });
 
-    // wire buttons
-    shiftList.querySelectorAll("[data-del]").forEach(btn => {
-      btn.addEventListener("click", () => {
-        const i = Number(btn.getAttribute("data-del"));
-        const arr = JSON.parse(localStorage.getItem(KEY) || "[]");
-        arr.splice(i, 1);
-        localStorage.setItem(KEY, JSON.stringify(arr));
-        load();
-      });
-    });
-
+    // Claim buttons (we’ll make real next step)
     shiftList.querySelectorAll("[data-claim]").forEach(btn => {
       btn.addEventListener("click", () => {
-        alert("Claim request sent (demo). Next step we make this real + approvals.");
+        alert("Next step: claim requests + approvals.");
       });
     });
   }
+
+  document.getElementById("postShiftBtn").addEventListener("click", async () => {
+    postErr.textContent = "";
+
+    const title = document.getElementById("shiftTitle").value.trim();
+    const shift_when = document.getElementById("shiftWhen").value.trim();
+    const shift_where = document.getElementById("shiftWhere").value.trim();
+
+    if (!title || !shift_when) {
+      postErr.textContent = "Enter at least a title + when.";
+      return;
+    }
+
+    // get current user id
+    const { data: sess } = await supabase.auth.getSession();
+    const userId = sess?.session?.user?.id || null;
+
+    const { error } = await supabase.from("shifts").insert({
+      title,
+      shift_when,
+      shift_where,
+      created_by: userId
+    });
+
+    if (error) {
+      postErr.textContent = error.message;
+      return;
+    }
+
+    document.getElementById("shiftTitle").value = "";
+    document.getElementById("shiftWhen").value = "";
+    document.getElementById("shiftWhere").value = "";
+
+    await loadShifts();
+  });
+
+  await loadShifts();
+}
 
   document.getElementById("postShiftBtn").addEventListener("click", () => {
     const title = document.getElementById("shiftTitle").value.trim();
