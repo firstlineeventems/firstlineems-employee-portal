@@ -1,4 +1,6 @@
 <script type="module">
+(async () => {
+try {
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const supabase = createClient(
@@ -1301,4 +1303,14 @@ calBtn.onclick = () => showCalendarWeek(0);
 // ===== Auto login =====
 const user = await getUser();
 if (user) await showPortal(user);
+} catch (err) {
+  document.body.innerHTML = `
+    <div style="padding:20px;font-family:monospace;color:red;">
+      <h2>Portal Crash</h2>
+      <pre>${err.message}</pre>
+    </div>
+  `;
+  console.error(err);
+}
+})();
 </script>
