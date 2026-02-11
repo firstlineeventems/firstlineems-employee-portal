@@ -19,7 +19,6 @@
   --danger:#b00020;
   --ok:#0f766e;
 }
-
 *{box-sizing:border-box}
 body { font-family: system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif; background:var(--bg); margin:0; color:var(--text); }
 .container { max-width:980px; margin:40px auto; padding:20px; }
@@ -35,14 +34,12 @@ button {
 button.secondary { background:#fff; color:var(--text); border-color:var(--line); box-shadow:none; font-weight:800; }
 button.danger { background:linear-gradient(180deg,#b00020,#8a0018); }
 button:disabled { opacity:.55; cursor:not-allowed; box-shadow:none; }
-
 input, textarea {
   padding:11px 12px; border-radius:12px; border:1px solid var(--line);
   background:#fff; color:var(--text); outline:none;
 }
 input:focus, textarea:focus{ border-color:rgba(37,99,235,.45); box-shadow:0 0 0 4px rgba(37,99,235,.12); }
 textarea { width:100%; min-height:92px; resize:vertical; }
-
 .error { color:var(--danger); font-weight:700; margin-top:8px; }
 .pill {
   background:#f3f4f6; padding:6px 12px; border-radius:999px; font-size:13px; font-weight:900;
@@ -50,7 +47,6 @@ textarea { width:100%; min-height:92px; resize:vertical; }
 }
 .pill.ok { background:rgba(15,118,110,.08); border-color:rgba(15,118,110,.25); color:var(--ok); }
 .pill.blue { background:rgba(37,99,235,.08); border-color:rgba(37,99,235,.25); color:var(--accent2); }
-
 .debug { font-weight:900; margin-top:10px; color:var(--muted); }
 hr { border:none; border-top:1px solid var(--line); margin:16px 0; }
 .small { color:var(--muted); font-size:13px; }
@@ -61,14 +57,11 @@ h2,h3,h4{margin:0 0 10px 0}
 h3{margin-top:6px}
 a{color:var(--accent); text-decoration:none; font-weight:900}
 a:hover{text-decoration:underline}
-
 .topbar{
   display:flex; justify-content:space-between; align-items:center; gap:14px;
   margin-bottom:14px;
 }
-.brand{
-  display:flex; gap:12px; align-items:center;
-}
+.brand{display:flex; gap:12px; align-items:center;}
 .logo{
   width:40px; height:40px; border-radius:14px;
   background:radial-gradient(circle at 30% 30%, #60a5fa, #1d4ed8);
@@ -77,25 +70,15 @@ a:hover{text-decoration:underline}
 .brandTitle{display:flex; flex-direction:column; gap:2px}
 .brandTitle .name{font-weight:1000; letter-spacing:.2px}
 .brandTitle .tag{font-size:13px; color:var(--muted); font-weight:700}
-
-.nav{
-  display:flex; gap:10px; flex-wrap:wrap; margin-top:10px;
-}
+.nav{display:flex; gap:10px; flex-wrap:wrap; margin-top:10px;}
 .nav button{
-  background:#fff;
-  border:1px solid var(--line);
-  color:var(--text);
-  box-shadow:none;
-  font-weight:900;
+  background:#fff; border:1px solid var(--line); color:var(--text); box-shadow:none; font-weight:900;
 }
 .nav button.active{
   border-color:rgba(37,99,235,.35);
   box-shadow:0 0 0 4px rgba(37,99,235,.10);
 }
-.sectionCard{
-  margin-top:14px;
-  border-radius:16px;
-}
+.sectionCard{margin-top:14px; border-radius:16px;}
 .grid5{
   display:grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
@@ -103,21 +86,12 @@ a:hover{text-decoration:underline}
   align-items:end;
 }
 .linkRow{
-  display:flex;
-  gap:14px;
-  flex-wrap:wrap;
-  margin-top:10px;
+  display:flex; gap:14px; flex-wrap:wrap; margin-top:10px;
 }
 .linkRow a{
-  display:inline-flex;
-  align-items:center;
-  gap:8px;
-  padding:10px 12px;
-  border:1px solid var(--line);
-  border-radius:12px;
-  background:#fff;
-  box-shadow:none;
-  font-weight:1000;
+  display:inline-flex; align-items:center; gap:8px;
+  padding:10px 12px; border:1px solid var(--line); border-radius:12px;
+  background:#fff; box-shadow:none; font-weight:1000;
 }
 @media (max-width: 900px){
   .grid5{grid-template-columns: 1fr 1fr}
@@ -199,7 +173,9 @@ const supabase = createClient(
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxuZXZ1ZWx3c2lld3hkcm1nY2toIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA3MzMyNjgsImV4cCI6MjA4NjMwOTI2OH0.voDpAvnscFh9-e70-xV4UBxtcO-TwYbU6V0JRPUFFIs"
 );
 
-const esc = s => String(s ?? "").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"}[m]));
+const esc = s => String(s ?? "").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"}[m]));
+// fix double key
+const esc2 = s => String(s ?? "").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"}[m]));
 const debug = msg => document.getElementById("debug").textContent = msg;
 debug("JS loaded ✅");
 
@@ -248,7 +224,7 @@ function toLocalInputValue(isoOrValue) {
 // Monday-start week helpers
 function startOfWeek(d) {
   const date = new Date(d);
-  const day = (date.getDay() + 6) % 7; // Mon=0 ... Sun=6
+  const day = (date.getDay() + 6) % 7;
   date.setHours(0,0,0,0);
   date.setDate(date.getDate() - day);
   return date;
@@ -265,50 +241,34 @@ function fmtTime(d) {
   return d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
 }
 
-// ===== links =====
+// ===== boxes / links =====
 function renderNotesBox(notes) {
   const n = (notes || "").trim();
   if (!n) return "";
   return `
     <div class="noteBox">
       <div class="noteTitle">Notes</div>
-      <div>${esc(n).replace(/\\n/g,"<br>")}</div>
+      <div>${esc2(n).replace(/\\n/g,"<br>")}</div>
     </div>
   `;
 }
 
-function renderMapLink(url) {
+function renderEventMapLink(url) {
   const u = (url || "").trim();
   if (!u) return "";
-  return `<a href="${esc(u)}" target="_blank" rel="noopener">🗺️ Event Map</a>`;
+  return `<a href="${esc2(u)}" target="_blank" rel="noopener">🗺️ Event Map</a>`;
 }
 
-// ✅ Smart Directions: Apple Maps on iPhone/iPad, Google Maps elsewhere
-function buildDirectionsUrl(where) {
-  const w = (where || "").trim();
-  if (!w) return "";
-  const q = encodeURIComponent(w);
-
-  const ua = navigator.userAgent || "";
-  const isIOS = /iPhone|iPad|iPod/i.test(ua);
-
-  // Apple Maps
-  if (isIOS) return `https://maps.apple.com/?daddr=${q}&dirflg=d`;
-
-  // Google Maps (Android/Desktop)
-  return `https://www.google.com/maps/dir/?api=1&destination=${q}`;
+function renderDirectionsLinkFromUrl(url) {
+  const u = (url || "").trim();
+  if (!u) return "";
+  return `<a href="${esc2(u)}" target="_blank" rel="noopener">🧭 Directions</a>`;
 }
 
-function renderDirectionsLink(where) {
-  const url = buildDirectionsUrl(where);
-  if (!url) return "";
-  return `<a href="${url}" target="_blank" rel="noopener">🧭 Directions</a>`;
-}
-
-function renderLinkRow(shiftWhere, mapUrl) {
+function renderLinkRow(mapUrl, directionsUrl) {
   const a = [];
-  const map = renderMapLink(mapUrl);
-  const dir = renderDirectionsLink(shiftWhere);
+  const map = renderEventMapLink(mapUrl);
+  const dir = renderDirectionsLinkFromUrl(directionsUrl);
   if (map) a.push(map);
   if (dir) a.push(dir);
   if (!a.length) return "";
@@ -365,7 +325,7 @@ async function getApprovedCountsForShiftIds(shiftIds) {
 }
 
 async function getMyClaimStatusMapForShiftIds(shiftIds) {
-  const map = {}; // shift_id -> status
+  const map = {};
   if (!shiftIds.length) return map;
 
   const { data, error } = await supabase
@@ -427,8 +387,11 @@ async function showSchedule() {
         </div>
       </div>
 
-      <label>Google My Map Link</label>
+      <label>Event Map Link (optional)</label>
       <input id="smap" placeholder="https://www.google.com/maps/d/..." style="width:100%;" />
+
+      <label>Directions Link (optional)</label>
+      <input id="sdir" placeholder="Paste a Directions URL (Google/Apple/Waze)" style="width:100%;" />
 
       <label>Shift Notes / Instructions</label>
       <textarea id="snotes" placeholder="Example: Meet at main gate 30 mins early. Uniform: Class B polo. Call supervisor if late."></textarea>
@@ -454,6 +417,7 @@ async function showSchedule() {
       const crew = Math.max(1, parseInt(screw.value || "1", 10));
       const notes = (snotes.value || "").trim();
       const mapUrl = (smap.value || "").trim();
+      const dirUrl = (sdir.value || "").trim();
 
       if (!title || !startVal || !endVal) {
         perr.textContent = "Enter a title, start, and end time.";
@@ -468,6 +432,7 @@ async function showSchedule() {
         crew_size: crew,
         notes,
         google_map_url: mapUrl || null,
+        directions_url: dirUrl || null,
         created_by: CURRENT_USER.id
       });
 
@@ -483,6 +448,7 @@ async function showSchedule() {
       screw.value = "1";
       snotes.value = "";
       smap.value = "";
+      sdir.value = "";
 
       await loadShifts();
     };
@@ -498,7 +464,7 @@ async function loadShifts() {
     .order("start_time", { ascending: true });
 
   if (error) {
-    content.innerHTML += `<div class="error">${esc(error.message)}</div>`;
+    content.innerHTML += `<div class="error">${esc2(error.message)}</div>`;
     return;
   }
 
@@ -523,7 +489,7 @@ async function loadShifts() {
     else claimBtnHtml = `<button onclick="claimShift('${s.id}')">Claim</button>`;
 
     const notesHtml = renderNotesBox(s.notes);
-    const linkRow = renderLinkRow(s.shift_where, s.google_map_url);
+    const linkRow = renderLinkRow(s.google_map_url, s.directions_url);
 
     const adminBtns = IS_ADMIN ? `
       <div class="row" style="margin-top:10px;">
@@ -531,18 +497,18 @@ async function loadShifts() {
         <button class="secondary" onclick="manageShift('${s.id}')">Manage</button>
         <button class="danger" onclick="deleteShift('${s.id}')">Delete</button>
       </div>
-      <div class="small">Edit = change time/crew/notes/map. Manage = remove approved members. Delete = remove shift entirely.</div>
+      <div class="small">Edit = change time/crew/notes/links. Manage = remove approved members. Delete = remove shift entirely.</div>
     ` : ``;
 
     return `
       <div class="card">
         <div class="row" style="justify-content:space-between; align-items:flex-start;">
           <div style="min-width:240px;">
-            <div style="font-weight:1000; font-size:16px;">${esc(s.title)}</div>
+            <div style="font-weight:1000; font-size:16px;">${esc2(s.title)}</div>
             <div class="small" style="margin-top:6px;">
               🕒 ${fmtDT(s.start_time)}${s.end_time ? ` – ${fmtDT(s.end_time)}` : ""}
             </div>
-            ${s.shift_where ? `<div style="margin-top:8px;"><span class="pill">${esc(s.shift_where)}</span></div>` : ``}
+            ${s.shift_where ? `<div style="margin-top:8px;"><span class="pill">${esc2(s.shift_where)}</span></div>` : ``}
             <div style="margin-top:8px;">
               <span class="pill" style="margin-right:8px;">${slotsText(ac, cs)}</span>
               ${full ? `<span class="pill">Full</span>` : `<span class="pill ok">Open</span>`}
@@ -618,8 +584,11 @@ window.editShift = async (shiftId) => {
       <input id="ecrew" type="number" min="1" style="width:160px;" />
       <div class="small">Crew size cannot be less than approved count (${approvedCount}).</div>
 
-      <label>Google My Map Link</label>
+      <label>Event Map Link (optional)</label>
       <input id="emap" placeholder="https://www.google.com/maps/d/..." style="width:100%;" />
+
+      <label>Directions Link (optional)</label>
+      <input id="edir" placeholder="Paste a Directions URL (Google/Apple/Waze)" style="width:100%;" />
 
       <label>Notes / Instructions</label>
       <textarea id="enotes"></textarea>
@@ -636,6 +605,7 @@ window.editShift = async (shiftId) => {
   document.getElementById("ecrew").value = String(Math.max(1, Number(shift.crew_size || 1)));
   document.getElementById("enotes").value = shift.notes || "";
   document.getElementById("emap").value = shift.google_map_url || "";
+  document.getElementById("edir").value = shift.directions_url || "";
 
   document.getElementById("saveShiftBtn").onclick = async () => {
     const eerr = document.getElementById("eerr");
@@ -648,12 +618,12 @@ window.editShift = async (shiftId) => {
     const notes = document.getElementById("enotes").value.trim();
     const crew = Math.max(1, parseInt(document.getElementById("ecrew").value || "1", 10));
     const mapUrl = (document.getElementById("emap").value || "").trim();
+    const dirUrl = (document.getElementById("edir").value || "").trim();
 
     if (!title || !startVal || !endVal) {
       eerr.textContent = "Title, start, and end are required.";
       return;
     }
-
     if (crew < approvedCount) {
       eerr.textContent = `Crew size cannot be less than approved count (${approvedCount}).`;
       return;
@@ -668,16 +638,13 @@ window.editShift = async (shiftId) => {
         shift_where: where,
         crew_size: crew,
         notes,
-        google_map_url: mapUrl || null
+        google_map_url: mapUrl || null,
+        directions_url: dirUrl || null
       })
       .eq("id", shiftId)
       .select("id");
 
-    if (error) {
-      eerr.textContent = error.message;
-      return;
-    }
-
+    if (error) { eerr.textContent = error.message; return; }
     if (!updated || updated.length === 0) {
       eerr.textContent = "Update blocked (no rows updated). This is usually an RLS/policy issue.";
       return;
@@ -762,15 +729,12 @@ async function showMyRequests() {
 
   const { data, error } = await supabase
     .from("shift_claims")
-    .select("id,status,created_at,shift_id,shifts(title,start_time,end_time,shift_where,crew_size,notes,google_map_url)")
+    .select("id,status,created_at,shift_id,shifts(title,start_time,end_time,shift_where,crew_size,notes,google_map_url,directions_url)")
     .eq("user_id", CURRENT_USER.id)
     .in("status", ["pending","approved","removal_requested"])
     .order("created_at", { ascending: false });
 
-  if (error) {
-    content.innerHTML = `<div class="error">${esc(error.message)}</div>`;
-    return;
-  }
+  if (error) { content.innerHTML = `<div class="error">${esc2(error.message)}</div>`; return; }
 
   const rows = data || [];
   const pending = rows.filter(r => r.status === "pending");
@@ -779,11 +743,11 @@ async function showMyRequests() {
 
   const renderShiftCard = (r, badgeHtml, actionHtml="") => `
     <div class="card sectionCard">
-      <div style="font-weight:1000; font-size:16px;">${esc(r.shifts?.title || "Shift")}</div>
+      <div style="font-weight:1000; font-size:16px;">${esc2(r.shifts?.title || "Shift")}</div>
       <div class="small" style="margin-top:6px;">🕒 ${fmtDT(r.shifts?.start_time)}${r.shifts?.end_time ? ` – ${fmtDT(r.shifts.end_time)}` : ""}</div>
-      ${r.shifts?.shift_where ? `<div style="margin-top:8px;"><span class="pill">${esc(r.shifts.shift_where)}</span></div>` : ``}
+      ${r.shifts?.shift_where ? `<div style="margin-top:8px;"><span class="pill">${esc2(r.shifts.shift_where)}</span></div>` : ``}
       <div style="margin-top:10px;">${badgeHtml}${actionHtml}</div>
-      ${renderLinkRow(r.shifts?.shift_where, r.shifts?.google_map_url)}
+      ${renderLinkRow(r.shifts?.google_map_url, r.shifts?.directions_url)}
       ${renderNotesBox(r.shifts?.notes)}
     </div>
   `;
@@ -817,7 +781,6 @@ async function showMyRequests() {
     )).join("") : `<div class="pill">No removal requests</div>`}
   `;
 }
-
 myBtn.onclick = showMyRequests;
 
 // ===== Approvals (admin) =====
@@ -827,19 +790,19 @@ apprBtn.onclick = async () => {
 
   const { data: pending, error: pErr } = await supabase
     .from("shift_claims")
-    .select("id,user_id,user_email,shift_id,status,created_at,shifts(id,title,start_time,end_time,shift_where,crew_size,notes,google_map_url)")
+    .select("id,user_id,user_email,shift_id,status,created_at,shifts(id,title,start_time,end_time,shift_where,crew_size,notes,google_map_url,directions_url)")
     .eq("status", "pending")
     .order("created_at", { ascending: false });
 
-  if (pErr) return content.innerHTML = `<div class="error">${esc(pErr.message)}</div>`;
+  if (pErr) return content.innerHTML = `<div class="error">${esc2(pErr.message)}</div>`;
 
   const { data: removal, error: rErr } = await supabase
     .from("shift_claims")
-    .select("id,user_id,user_email,shift_id,status,created_at,shifts(id,title,start_time,end_time,shift_where,crew_size,notes,google_map_url)")
+    .select("id,user_id,user_email,shift_id,status,created_at,shifts(id,title,start_time,end_time,shift_where,crew_size,notes,google_map_url,directions_url)")
     .eq("status", "removal_requested")
     .order("created_at", { ascending: false });
 
-  if (rErr) return content.innerHTML = `<div class="error">${esc(rErr.message)}</div>`;
+  if (rErr) return content.innerHTML = `<div class="error">${esc2(rErr.message)}</div>`;
 
   const shiftIds = Array.from(new Set([...(pending||[]).map(x=>x.shift_id), ...(removal||[]).map(x=>x.shift_id)]));
   const approvedCounts = await getApprovedCountsForShiftIds(shiftIds);
@@ -856,20 +819,18 @@ apprBtn.onclick = async () => {
 
       return `
         <div class="card sectionCard">
-          <div style="font-weight:1000; font-size:16px;">${esc(s.title || "Shift")}</div>
+          <div style="font-weight:1000; font-size:16px;">${esc2(s.title || "Shift")}</div>
           <div class="small" style="margin-top:6px;">🕒 ${fmtDT(s.start_time)}${s.end_time ? ` – ${fmtDT(s.end_time)}` : ""}</div>
-          ${s.shift_where ? `<div style="margin-top:8px;"><span class="pill">${esc(s.shift_where)}</span></div>` : ``}
+          ${s.shift_where ? `<div style="margin-top:8px;"><span class="pill">${esc2(s.shift_where)}</span></div>` : ``}
           <div style="margin-top:10px;">
             <span class="pill">${slotsText(ac, cs)}</span>
             ${full ? `<span class="pill" style="margin-left:8px;">Full</span>` : `<span class="pill ok" style="margin-left:8px;">Open</span>`}
           </div>
-          ${renderLinkRow(s.shift_where, s.google_map_url)}
+          ${renderLinkRow(s.google_map_url, s.directions_url)}
           ${renderNotesBox(s.notes)}
-          <div style="margin-top:10px;">Claimed by: <b>${esc(c.user_email || c.user_id)}</b></div>
+          <div style="margin-top:10px;">Claimed by: <b>${esc2(c.user_email || c.user_id)}</b></div>
           <div class="row" style="margin-top:10px;">
-            <button ${full ? "disabled" : ""} onclick="approveClaim('${c.id}')">
-              ${full ? "Full" : "Approve"}
-            </button>
+            <button ${full ? "disabled" : ""} onclick="approveClaim('${c.id}')">${full ? "Full" : "Approve"}</button>
             <button class="secondary" onclick="denyClaim('${c.id}')">Deny</button>
           </div>
         </div>
@@ -886,15 +847,13 @@ apprBtn.onclick = async () => {
 
       return `
         <div class="card sectionCard">
-          <div style="font-weight:1000; font-size:16px;">${esc(s.title || "Shift")}</div>
+          <div style="font-weight:1000; font-size:16px;">${esc2(s.title || "Shift")}</div>
           <div class="small" style="margin-top:6px;">🕒 ${fmtDT(s.start_time)}${s.end_time ? ` – ${fmtDT(s.end_time)}` : ""}</div>
-          ${s.shift_where ? `<div style="margin-top:8px;"><span class="pill">${esc(s.shift_where)}</span></div>` : ``}
-          <div style="margin-top:10px;">
-            <span class="pill">${slotsText(ac, cs)}</span>
-          </div>
-          ${renderLinkRow(s.shift_where, s.google_map_url)}
+          ${s.shift_where ? `<div style="margin-top:8px;"><span class="pill">${esc2(s.shift_where)}</span></div>` : ``}
+          <div style="margin-top:10px;"><span class="pill">${slotsText(ac, cs)}</span></div>
+          ${renderLinkRow(s.google_map_url, s.directions_url)}
           ${renderNotesBox(s.notes)}
-          <div style="margin-top:10px;">Employee: <b>${esc(c.user_email || c.user_id)}</b></div>
+          <div style="margin-top:10px;">Employee: <b>${esc2(c.user_email || c.user_id)}</b></div>
           <div class="row" style="margin-top:10px;">
             <button onclick="approveRemoval('${c.id}')">Approve Removal</button>
             <button class="secondary" onclick="denyRemoval('${c.id}')">Deny Removal</button>
@@ -906,44 +865,25 @@ apprBtn.onclick = async () => {
 };
 
 window.approveClaim = async (claimId) => {
-  const { error } = await supabase
-    .from("shift_claims")
-    .update({ status: "approved" })
-    .eq("id", claimId);
-
+  const { error } = await supabase.from("shift_claims").update({ status: "approved" }).eq("id", claimId);
   if (error) return alert(error.message);
   alert("Approved.");
   apprBtn.onclick();
 };
-
 window.denyClaim = async (claimId) => {
-  const { error } = await supabase
-    .from("shift_claims")
-    .update({ status: "denied" })
-    .eq("id", claimId);
-
+  const { error } = await supabase.from("shift_claims").update({ status: "denied" }).eq("id", claimId);
   if (error) return alert(error.message);
   alert("Denied.");
   apprBtn.onclick();
 };
-
 window.approveRemoval = async (claimId) => {
-  const { error } = await supabase
-    .from("shift_claims")
-    .update({ status: "removed" })
-    .eq("id", claimId);
-
+  const { error } = await supabase.from("shift_claims").update({ status: "removed" }).eq("id", claimId);
   if (error) return alert(error.message);
   alert("Removed from shift.");
   apprBtn.onclick();
 };
-
 window.denyRemoval = async (claimId) => {
-  const { error } = await supabase
-    .from("shift_claims")
-    .update({ status: "approved" })
-    .eq("id", claimId);
-
+  const { error } = await supabase.from("shift_claims").update({ status: "approved" }).eq("id", claimId);
   if (error) return alert(error.message);
   alert("Removal denied (kept approved).");
   apprBtn.onclick();
@@ -953,11 +893,7 @@ window.denyRemoval = async (claimId) => {
 window.manageShift = async (shiftId) => {
   if (!IS_ADMIN) return alert("Admins only.");
 
-  const { data: shift, error: sErr } = await supabase
-    .from("shifts")
-    .select("*")
-    .eq("id", shiftId)
-    .single();
+  const { data: shift, error: sErr } = await supabase.from("shifts").select("*").eq("id", shiftId).single();
   if (sErr) return alert(sErr.message);
 
   const { data: approved, error: aErr } = await supabase
@@ -966,7 +902,6 @@ window.manageShift = async (shiftId) => {
     .eq("shift_id", shiftId)
     .eq("status", "approved")
     .order("created_at", { ascending: true });
-
   if (aErr) return alert(aErr.message);
 
   const cs = Math.max(1, Number(shift.crew_size || 1));
@@ -986,20 +921,18 @@ window.manageShift = async (shiftId) => {
     </div>
 
     <div class="card sectionCard">
-      <div style="font-weight:1000; font-size:16px;">${esc(shift.title)}</div>
+      <div style="font-weight:1000; font-size:16px;">${esc2(shift.title)}</div>
       <div class="small" style="margin-top:6px;">🕒 ${fmtDT(shift.start_time)}${shift.end_time ? ` – ${fmtDT(shift.end_time)}` : ""}</div>
-      ${shift.shift_where ? `<div style="margin-top:8px;"><span class="pill">${esc(shift.shift_where)}</span></div>` : ``}
-      <div style="margin-top:10px;">
-        <span class="pill">${slotsText(ac, cs)}</span>
-      </div>
-      ${renderLinkRow(shift.shift_where, shift.google_map_url)}
+      ${shift.shift_where ? `<div style="margin-top:8px;"><span class="pill">${esc2(shift.shift_where)}</span></div>` : ``}
+      <div style="margin-top:10px;"><span class="pill">${slotsText(ac, cs)}</span></div>
+      ${renderLinkRow(shift.google_map_url, shift.directions_url)}
       ${renderNotesBox(shift.notes)}
     </div>
 
     <h4 style="margin-top:12px;">Approved Members</h4>
     ${(approved || []).length ? (approved || []).map(m => `
       <div class="card sectionCard" style="box-shadow:none;">
-        <div style="font-weight:900;">${esc(m.user_email || m.user_id)}</div>
+        <div style="font-weight:900;">${esc2(m.user_email || m.user_id)}</div>
         <div class="row" style="margin-top:10px;">
           <button class="danger" onclick="adminRemoveApproved('${m.id}')">Remove</button>
         </div>
@@ -1010,12 +943,7 @@ window.manageShift = async (shiftId) => {
 
 window.adminRemoveApproved = async (claimId) => {
   if (!IS_ADMIN) return alert("Admins only.");
-
-  const { error } = await supabase
-    .from("shift_claims")
-    .update({ status: "removed" })
-    .eq("id", claimId);
-
+  const { error } = await supabase.from("shift_claims").update({ status: "removed" }).eq("id", claimId);
   if (error) return alert(error.message);
   alert("Removed.");
   await showSchedule();
@@ -1028,12 +956,7 @@ window.deleteShift = async (shiftId) => {
   const { error: e1 } = await supabase.from("shift_claims").delete().eq("shift_id", shiftId);
   if (e1) return alert("Delete claims failed: " + e1.message);
 
-  const { data: deletedShift, error: e2 } = await supabase
-    .from("shifts")
-    .delete()
-    .eq("id", shiftId)
-    .select("id");
-
+  const { data: deletedShift, error: e2 } = await supabase.from("shifts").delete().eq("id", shiftId).select("id");
   if (e2) return alert("Delete shift failed: " + e2.message);
 
   if (!deletedShift || deletedShift.length === 0) {
@@ -1066,13 +989,7 @@ async function showCalendarWeek(weekOffset = 0) {
       </div>
     </div>
 
-    <div id="calGrid" style="
-      margin-top:12px;
-      display:grid;
-      grid-template-columns: repeat(7, 1fr);
-      gap:10px;
-    "></div>
-
+    <div id="calGrid" style="margin-top:12px; display:grid; grid-template-columns: repeat(7, 1fr); gap:10px;"></div>
     <div id="calErr" class="error"></div>
   `;
 
@@ -1090,10 +1007,7 @@ async function showCalendarWeek(weekOffset = 0) {
     .lt("start_time", weekEnd.toISOString())
     .order("start_time", { ascending: true });
 
-  if (error) {
-    calErr.textContent = error.message;
-    return;
-  }
+  if (error) { calErr.textContent = error.message; return; }
 
   const shifts = data || [];
   const shiftIds = shifts.map(s => s.id);
@@ -1149,16 +1063,14 @@ async function showCalendarWeek(weekOffset = 0) {
       block.style.background = "#fff";
 
       block.innerHTML = `
-        <div style="font-weight:900;">${esc(s.title)}</div>
-        <div class="small" style="margin-top:4px;">
-          ${fmtTime(st)}${en ? ` – ${fmtTime(en)}` : ``}
-        </div>
-        ${s.shift_where ? `<div class="small" style="margin-top:2px;">${esc(s.shift_where)}</div>` : ``}
+        <div style="font-weight:900;">${esc2(s.title)}</div>
+        <div class="small" style="margin-top:4px;">${fmtTime(st)}${en ? ` – ${fmtTime(en)}` : ``}</div>
+        ${s.shift_where ? `<div class="small" style="margin-top:2px;">${esc2(s.shift_where)}</div>` : ``}
         <div style="margin-top:8px;">
           <span class="pill">${slotsText(ac, cs)}</span>
           <div style="margin-top:8px;">${actionHtml}</div>
         </div>
-        ${renderLinkRow(s.shift_where, s.google_map_url)}
+        ${renderLinkRow(s.google_map_url, s.directions_url)}
         ${renderNotesBox(s.notes)}
       `;
 
@@ -1166,9 +1078,7 @@ async function showCalendarWeek(weekOffset = 0) {
     });
   });
 
-  if (window.innerWidth < 850) {
-    calGrid.style.gridTemplateColumns = "1fr";
-  }
+  if (window.innerWidth < 850) calGrid.style.gridTemplateColumns = "1fr";
 }
 
 // ===== Announcements =====
