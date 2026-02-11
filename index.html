@@ -1,494 +1,193 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>First Line EMS Employee Portal</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <style>
-    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; background:#f5f6f8; margin:0; }
-    .container { max-width: 900px; margin: 40px auto; padding: 20px; }
-    .card { background:#fff; border-radius:14px; padding:24px; box-shadow:0 10px 25px rgba(0,0,0,.08); }
-    h1 { margin:0 0 12px 0; font-size:24px; }
-    input { width:100%; padding:12px; margin:8px 0; border-radius:10px; border:1px solid #ddd; font-size:16px; }
-    button { padding:12px 16px; border-radius:10px; border:none; background:#111; color:#fff; font-size:16px; font-weight:700; cursor:pointer; margin-top:10px; }
-    button.secondary { background:#eaeaea; color:#111; }
-    button:disabled { opacity:.55; cursor:not-allowed; }
-    .row { display:flex; gap:12px; flex-wrap:wrap; align-items:center; }
-    .hidden { display:none; }
-    .error { color:#b00020; margin-top:10px; font-weight:600; }
-    .pill { background:#eee; border-radius:999px; padding:6px 12px; font-size:13px; font-weight:700; }
-    .debug { margin-top:10px; font-weight:800; color:#111; }
-  </style>
+<meta charset="UTF-8" />
+<title>First Line EMS Employee Portal</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<style>
+body { font-family: system-ui; background:#f5f6f8; margin:0; }
+.container { max-width:900px; margin:40px auto; padding:20px; }
+.card { background:#fff; border-radius:14px; padding:24px; box-shadow:0 10px 25px rgba(0,0,0,.08); }
+.hidden { display:none; }
+.row { display:flex; gap:12px; flex-wrap:wrap; }
+button { padding:12px 16px; border-radius:10px; border:none; background:#111; color:#fff; font-weight:700; cursor:pointer; }
+button.secondary { background:#eaeaea; color:#111; }
+.error { color:#b00020; font-weight:600; margin-top:8px; }
+.pill { background:#eee; padding:6px 12px; border-radius:999px; font-size:13px; font-weight:700; }
+.debug { font-weight:800; margin-top:10px; }
+</style>
 </head>
 <body>
 
 <div class="container">
 
-  <!-- LOGIN -->
-  <div id="login" class="card">
-    <h1>First Line EMS – Employee Login</h1>
-    <input id="email" type="email" placeholder="Email" />
-    <input id="password" type="password" placeholder="Password" />
-    <button id="loginBtn">Login</button>
-
-    <div id="debug" class="debug"></div>
-    <div id="loginError" class="error"></div>
-  </div>
-
-  <!-- PORTAL -->
-  <div id="portal" class="card hidden">
-    <div class="row" style="justify-content:space-between;">
-      <span class="pill" id="userEmail"></span>
-      <button class="secondary" id="logoutBtn">Logout</button>
-    </div>
-
-    <h1 style="margin-top:16px;">Employee Portal</h1>
-
-   <div class="row">
-  <button id="schedBtn">Scheduling</button>
-  <button id="myBtn">My Shifts</button>
-  <button id="annBtn">Announcements</button>
-  <button id="apprBtn">Approvals</button>
+<!-- LOGIN -->
+<div id="login" class="card">
+<h2>Employee Login</h2>
+<input id="email" placeholder="Email" />
+<input id="password" type="password" placeholder="Password" />
+<button id="loginBtn">Login</button>
+<div id="debug" class="debug"></div>
+<div id="loginError" class="error"></div>
 </div>
 
-    <div id="content"></div>
-  </div>
+<!-- PORTAL -->
+<div id="portal" class="card hidden">
+<div class="row" style="justify-content:space-between">
+<span id="userEmail" class="pill"></span>
+<button id="logoutBtn" class="secondary">Logout</button>
+</div>
+
+<div class="row" style="margin-top:14px">
+<button id="schedBtn">Scheduling</button>
+<button id="myBtn">My Shifts</button>
+<button id="annBtn">Announcements</button>
+<button id="apprBtn">Approvals</button>
+</div>
+
+<div id="content"></div>
+</div>
 
 </div>
 
 <script type="module">
-  import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
+import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
 
-  // ====== SUPABASE ======
-  const SUPABASE_URL = "https://lnevuelwsiewxdrmgckh.supabase.co";
-  const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxuZXZ1ZWx3c2lld3hkcm1nY2toIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA3MzMyNjgsImV4cCI6MjA4NjMwOTI2OH0.voDpAvnscFh9-e70-xV4UBxtcO-TwYbU6V0JRPUFFIs";
-  const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const supabase = createClient(
+  "https://lnevuelwsiewxdrmgckh.supabase.co",
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxuZXZ1ZWx3c2lld3hkcm1nY2toIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA3MzMyNjgsImV4cCI6MjA4NjMwOTI2OH0.voDpAvnscFh9-e70-xV4UBxtcO-TwYbU6V0JRPUFFIs"
+);
 
-  // ====== UI / DEBUG ======
-  const debugEl = document.getElementById("debug");
-  const setDebug = (msg) => { debugEl.textContent = msg || ""; };
+const debug = msg => document.getElementById("debug").textContent = msg;
+debug("JS loaded ✅");
 
-  window.addEventListener("error", (e) => setDebug("JS error: " + (e?.message || e)));
-  window.addEventListener("unhandledrejection", (e) => setDebug("Promise error: " + (e?.reason?.message || e?.reason || e)));
+const esc = s => String(s).replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"}[m]));
 
-  setDebug("JS loaded ✅");
-
-  const loginEl = document.getElementById("login");
-  const portalEl = document.getElementById("portal");
-  const loginBtn = document.getElementById("loginBtn");
-  const logoutBtn = document.getElementById("logoutBtn");
-  const schedBtn = document.getElementById("schedBtn");
-  const annBtn = document.getElementById("annBtn");
-  const apprBtn = document.getElementById("apprBtn");
-  const myBtn = document.getElementById("myBtn");
-
-  const loginError = document.getElementById("loginError");
-  const emailEl = document.getElementById("email");
-  const passwordEl = document.getElementById("password");
-  const userEmailEl = document.getElementById("userEmail");
-  const contentEl = document.getElementById("content");
-
-  const escapeHtml = (str) =>
-    String(str).replace(/[&<>"']/g, (m) => ({
-      "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"
-    }[m]));
-
-  function showAnnouncements() {
-    contentEl.innerHTML = `
-      <h3>Announcements</h3>
-      <p>Announcements will appear here.</p>
-    `;
-  }
-
-  async function showApprovals() {
-  contentEl.innerHTML = `
-    <h3>Approvals</h3>
-    <p>Pending shift claims.</p>
-    <div id="claimList" style="display:grid; gap:10px;"></div>
-    <div id="claimErr" class="error"></div>
-  `;
-
-    const postShiftBox = document.getElementById("postShiftBox");
-
-// check admin role
-const { data: sess } = await supabase.auth.getSession();
-const userId = sess?.session?.user?.id;
-
-if (userId) {
-  const { data: role } = await supabase
-    .from("user_roles")
-    .select("is_admin")
-    .eq("user_id", userId)
-    .single();
-
-  if (!role?.is_admin) {
-    postShiftBox.style.display = "none";
-  }
-}
-
-  const claimList = document.getElementById("claimList");
-  const claimErr = document.getElementById("claimErr");
-
-  // load pending claims + shift info
-  const { data, error } = await supabase
-    .from("shift_claims")
-    .select("id, status, created_at, shift_id, user_id, user_email, shifts(title, shift_when, shift_where)")
-    .eq("status", "pending")
-    .order("created_at", { ascending: false });
-
-  if (error) {
-    claimErr.textContent = error.message;
-    return;
-  }
-
-  if (!data || data.length === 0) {
-    claimList.innerHTML = `<div class="pill">No pending claims</div>`;
-    return;
-  }
-
-  claimList.innerHTML = "";
-  data.forEach((c) => {
-    const s = c.shifts || {};
-    const div = document.createElement("div");
-    div.className = "card";
-    div.style.boxShadow = "none";
-    div.style.border = "1px solid #ddd";
-
-    div.innerHTML = `
-      <div style="font-weight:900;">${escapeHtml(s.title || "Shift")}</div>
-      <div style="color:#444; margin-top:4px;">${escapeHtml(s.shift_when || "")}</div>
-      <div style="color:#666; margin-top:2px;">${escapeHtml(s.shift_where || "")}</div>
-      <div style="color:#666; margin-top:8px; font-size:13px;">
-        Claimed by: ${escapeHtml(c.user_email || c.user_id)}
-      </div>
-      <div class="row" style="margin-top:10px;">
-        <button class="secondary" data-approve="${c.id}">Approve</button>
-        <button class="secondary" data-deny="${c.id}">Deny</button>
-      </div>
-    `;
-    claimList.appendChild(div);
-  });
-
-async function updateClaim(id, status) {
-  // Get the claim so we know shift_id + user_id
-  const { data: claim, error: readErr } = await supabase
-    .from("shift_claims")
-    .select("id, shift_id, user_id")
-    .eq("id", id)
-    .single();
-
-  if (readErr) {
-    alert("Could not read claim: " + readErr.message);
-    return;
-  }
-
-  // Update claim status
-  const { error: updErr } = await supabase
-    .from("shift_claims")
-    .update({ status })
-    .eq("id", id);
-
-  if (updErr) {
-    alert("Claim update failed: " + updErr.message);
-    return;
-  }
-
-  // If approved, fill the shift
-  if (status === "approved") {
-    const { error: fillErr } = await supabase
-      .from("shifts")
-      .update({ filled_by: claim.user_id })
-      .eq("id", claim.shift_id);
-
-    if (fillErr) {
-      alert("Shift fill failed: " + fillErr.message);
-      return;
-    }
-  }
-
-  await showApprovals(); // refresh list
-}
-
-  claimList.querySelectorAll("[data-approve]").forEach(btn => {
-    btn.addEventListener("click", () => updateClaim(btn.getAttribute("data-approve"), "approved"));
-  });
-  claimList.querySelectorAll("[data-deny]").forEach(btn => {
-    btn.addEventListener("click", () => updateClaim(btn.getAttribute("data-deny"), "denied"));
-  });
-}
-
-  apprBtn.addEventListener("click", async () => {
-  setDebug("Approvals clicked ✅");
-
-  const { data: sess } = await supabase.auth.getSession();
-  const { data: role } = await supabase
-    .from("user_roles")
-    .select("is_admin")
-    .eq("user_id", sess.session.user.id)
-    .single();
-
-  if (!role?.is_admin) {
-    alert("Admins only.");
-    return;
-  }
-
-  try {
-    await showApprovals();
-  } catch (e) {
-    setDebug("Approvals error: " + (e?.message || e));
-  }
-});
-  
-async function showMyShifts() {
-  contentEl.innerHTML = `
-    <h3>My Shifts</h3>
-    <div id="myList" style="display:grid; gap:10px;"></div>
-    <div id="myErr" class="error"></div>
-  `;
-
-  const myList = document.getElementById("myList");
-  const myErr = document.getElementById("myErr");
-
-  const { data: sess } = await supabase.auth.getSession();
-  const userId = sess?.session?.user?.id;
-
-  if (!userId) {
-    myErr.textContent = "Not logged in.";
-    return;
-  }
-
-  const { data, error } = await supabase
-    .from("shifts")
-    .select("*")
-    .eq("filled_by", userId)
-    .order("created_at", { ascending: false });
-
-  if (error) {
-    myErr.textContent = error.message;
-    return;
-  }
-
-  if (!data || data.length === 0) {
-    myList.innerHTML = `<div class="pill">No assigned shifts yet</div>`;
-    return;
-  }
-
-  myList.innerHTML = "";
-  data.forEach((s) => {
-    const div = document.createElement("div");
-    div.className = "card";
-    div.style.boxShadow = "none";
-    div.style.border = "1px solid #ddd";
-
-    div.innerHTML = `
-      <div style="font-weight:900;">${escapeHtml(s.title)}</div>
-      <div style="color:#444; margin-top:4px;">${escapeHtml(s.shift_when)}</div>
-      <div style="color:#666; margin-top:2px;">${escapeHtml(s.shift_where || "")}</div>
-      <div class="pill" style="margin-top:10px; display:inline-block;">Assigned ✅</div>
-    `;
-    myList.appendChild(div);
-  });
-}
-
-  async function showSchedule() {
-    contentEl.innerHTML = `
-      <h3>Scheduling</h3>
-      <p>Shared shift board (stored in Supabase).</p>
-
-      <div style="margin-top:14px;">
-        <h4 style="margin:0 0 10px 0;">Available Shifts</h4>
-        <div id="shiftList" style="display:grid; gap:10px;"></div>
-      </div>
-    `;
-
-    const shiftList = document.getElementById("shiftList");
-    const postErr = document.getElementById("postErr");
-
-    async function loadShifts() {
-      shiftList.innerHTML = `<div class="pill">Loading…</div>`;
-
-      const { data, error } = await supabase
-  .from("shifts")
-  .select("*")
-  .is("filled_by", null)
-  .order("created_at", { ascending: false });
-
-      if (error) {
-        shiftList.innerHTML = `<div class="error">Error loading shifts: ${escapeHtml(error.message)}</div>`;
-        return;
-      }
-
-      if (!data || data.length === 0) {
-        shiftList.innerHTML = `<div class="pill">No shifts posted yet</div>`;
-        return;
-      }
-
-      shiftList.innerHTML = "";
-      data.forEach((s) => {
-        const div = document.createElement("div");
-        div.className = "card";
-        div.style.boxShadow = "none";
-        div.style.border = "1px solid #ddd";
-
-        div.innerHTML = `
-          <div style="font-weight:900;">${escapeHtml(s.title)}</div>
-          <div style="color:#444; margin-top:4px;">${escapeHtml(s.shift_when)}</div>
-          <div style="color:#666; margin-top:2px;">${escapeHtml(s.shift_where || "")}</div>
-          <div class="row" style="margin-top:10px;">
-            <button class="secondary" data-claim="${s.id}">Claim</button>
-          </div>
-        `;
-        shiftList.appendChild(div);
-      });
-
-      // Claim buttons -> insert into shift_claims
-      shiftList.querySelectorAll("[data-claim]").forEach(btn => {
-        btn.addEventListener("click", async () => {
-          const shiftId = btn.getAttribute("data-claim");
-
-          const { data: sess } = await supabase.auth.getSession();
-          const userId = sess?.session?.user?.id;
-
-          if (!userId) {
-            alert("You must be logged in.");
-            return;
-          }
-
-          btn.disabled = true;
-          const oldText = btn.textContent;
-          btn.textContent = "Claiming...";
-
-          const userEmail = sess?.session?.user?.email || null;
-
-const { error } = await supabase.from("shift_claims").insert({
-  shift_id: shiftId,
-  user_id: userId,
-  user_email: userEmail,
-  status: "pending"
-});
-
-          if (error) {
-            btn.disabled = false;
-            btn.textContent = oldText;
-            alert("Claim failed: " + error.message);
-            return;
-          }
-
-          btn.textContent = "Claim sent ✅";
-        });
-      });
-    }
-
-    document.getElementById("postShiftBtn").addEventListener("click", async () => {
-      postErr.textContent = "";
-
-      const title = document.getElementById("shiftTitle").value.trim();
-      const shift_when = document.getElementById("shiftWhen").value.trim();
-      const shift_where = document.getElementById("shiftWhere").value.trim();
-
-      if (!title || !shift_when) {
-        postErr.textContent = "Enter at least a title + when.";
-        return;
-      }
-
-      const { data: sess } = await supabase.auth.getSession();
-      const userId = sess?.session?.user?.id || null;
-
-      const { error } = await supabase.from("shifts").insert({
-        title,
-        shift_when,
-        shift_where,
-        created_by: userId
-      });
-
-      if (error) {
-        postErr.textContent = error.message;
-        return;
-      }
-
-      document.getElementById("shiftTitle").value = "";
-      document.getElementById("shiftWhen").value = "";
-      document.getElementById("shiftWhere").value = "";
-
-      await loadShifts();
-    });
-
-    await loadShifts();
-  }
-
-  function showPortal(user) {
-    loginEl.classList.add("hidden");
-    portalEl.classList.remove("hidden");
-    userEmailEl.textContent = user.email;
-    showSchedule();
-  }
-
-  // LOGIN
-  loginBtn.addEventListener("click", async () => {
-    setDebug("Login clicked ✅");
-    loginError.textContent = "";
-
-    const email = emailEl.value.trim();
-    const password = passwordEl.value.trim();
-
-    if (!email || !password) {
-      loginError.textContent = "Enter email and password.";
-      return;
-    }
-
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-
-    if (error) {
-      loginError.textContent = error.message;
-      return;
-    }
-
-    showPortal(data.user);
-  });
-
-  // LOGOUT
-  logoutBtn.addEventListener("click", async () => {
-    await supabase.auth.signOut();
-    location.reload();
-  });
-
-  // NAV BUTTONS
-  schedBtn.addEventListener("click", async () => {
-    setDebug("Scheduling clicked ✅");
-    try { await showSchedule(); } catch (e) { setDebug("Scheduling error: " + (e?.message || e)); }
-  });
-
-  annBtn.addEventListener("click", () => {
-    setDebug("Announcements clicked ✅");
-    try { showAnnouncements(); } catch (e) { setDebug("Announcements error: " + (e?.message || e)); }
-  });
-
-  myBtn.addEventListener("click", async () => {
-  setDebug("My Shifts clicked ✅");
-  try { 
-    await showMyShifts(); 
-  } catch (e) { 
-    setDebug("My Shifts error: " + (e?.message || e)); 
-  }
-});
-
-  // AUTO LOGIN
+async function getUser() {
   const { data } = await supabase.auth.getSession();
-if (data?.session?.user) {
-  await showPortal(data.session.user);
-
-  // check admin role
-  const { data: role } = await supabase
-    .from("user_roles")
-    .select("is_admin")
-    .eq("user_id", data.session.user.id)
-    .single();
-
-  if (!role?.is_admin) {
-    // hide approvals for non-admins
-    document.getElementById("apprBtn").style.display = "none";
-  }
+  return data?.session?.user;
 }
+
+async function isAdmin(userId) {
+  const { data } = await supabase.from("user_roles").select("is_admin").eq("user_id", userId).single();
+  return !!data?.is_admin;
+}
+
+/* LOGIN */
+loginBtn.onclick = async () => {
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email: email.value,
+    password: password.value
+  });
+  if (error) return loginError.textContent = error.message;
+  showPortal(data.user);
+};
+
+logoutBtn.onclick = async () => {
+  await supabase.auth.signOut();
+  location.reload();
+};
+
+async function showPortal(user) {
+  login.classList.add("hidden");
+  portal.classList.remove("hidden");
+  userEmail.textContent = user.email;
+
+  if (!(await isAdmin(user.id))) apprBtn.style.display = "none";
+
+  showSchedule();
+}
+
+/* SCHEDULING */
+async function showSchedule() {
+  const user = await getUser();
+  const admin = await isAdmin(user.id);
+
+  content.innerHTML = `
+    <h3>Scheduling</h3>
+    ${admin ? `
+    <div class="card">
+      <h4>Post Shift</h4>
+      <input id="stitle" placeholder="Title" />
+      <input id="swhen" placeholder="When" />
+      <input id="swhere" placeholder="Where" />
+      <button id="postBtn">Post</button>
+      <div id="perr" class="error"></div>
+    </div>` : ``}
+    <div id="list"></div>
+  `;
+
+  if (admin) {
+    postBtn.onclick = async () => {
+      const { error } = await supabase.from("shifts").insert({
+        title: stitle.value,
+        shift_when: swhen.value,
+        shift_where: swhere.value,
+        created_by: user.id
+      });
+      if (error) perr.textContent = error.message;
+      loadShifts();
+    };
+  }
+
+  loadShifts();
+}
+
+async function loadShifts() {
+  const { data } = await supabase.from("shifts").select("*").is("filled_by", null);
+  list.innerHTML = data.map(s => `
+    <div class="card">
+      <b>${esc(s.title)}</b><br>
+      ${esc(s.shift_when)}<br>
+      <button onclick="claim('${s.id}')">Claim</button>
+    </div>
+  `).join("");
+}
+
+window.claim = async id => {
+  const u = await getUser();
+  await supabase.from("shift_claims").insert({
+    shift_id: id,
+    user_id: u.id,
+    user_email: u.email
+  });
+  alert("Claim sent");
+};
+
+/* MY SHIFTS */
+myBtn.onclick = async () => {
+  const u = await getUser();
+  const { data } = await supabase.from("shifts").select("*").eq("filled_by", u.id);
+  content.innerHTML = data.length
+    ? data.map(s => `<div class="card">${esc(s.title)} ✔</div>`).join("")
+    : `<div class="pill">No assigned shifts</div>`;
+};
+
+/* APPROVALS */
+apprBtn.onclick = async () => {
+  const { data } = await supabase.from("shift_claims")
+    .select("id,user_id,user_email,shift_id,shifts(title)")
+    .eq("status","pending");
+
+  content.innerHTML = data.map(c => `
+    <div class="card">
+      ${esc(c.shifts.title)} — ${esc(c.user_email)}
+      <button onclick="approve('${c.id}','${c.shift_id}','${c.user_id}')">Approve</button>
+    </div>
+  `).join("");
+};
+
+window.approve = async (cid,sid,uid) => {
+  await supabase.from("shift_claims").update({status:"approved"}).eq("id",cid);
+  await supabase.from("shifts").update({filled_by:uid}).eq("id",sid);
+  apprBtn.onclick();
+};
+
+annBtn.onclick = () => content.innerHTML = `<p>No announcements</p>`;
+schedBtn.onclick = showSchedule;
+
+const user = await getUser();
+if (user) showPortal(user);
 </script>
 
 </body>
