@@ -113,8 +113,8 @@ async function showPortal(user) {
 
 /* SCHEDULING */
 async function showSchedule() {
-  const user = await getUser();
-  const admin = await isAdmin(user.id);
+const user = CURRENT_USER;
+const admin = IS_ADMIN;
 
   content.innerHTML = `
     <h3>Scheduling</h3>
