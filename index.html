@@ -163,12 +163,33 @@ async function loadShifts() {
 }
 
 window.claim = async id => {
-  await supabase.from("shift_claims").insert({
+  // Check if a pending claim already exists
+  const { data: existing } = await supabase
+    .from("shift_claims")
+    .select("id")
+    .eq("shift_id", id)
+    .eq("status", "pending")
+    .limit(1);
+
+  if (existing && existing.length > 0) {
+    alert("This shift already has a pending claim.");
+    return;
+  }
+
+  const { error } = await supabase.from("shift_claims").insert({
     shift_id: id,
     user_id: CURRENT_USER.id,
-    user_email: CURRENT_USER.email
+    user_email: CURRENT_USER.email,
+    status: "pending"
   });
-  alert("Claim sent");
+
+  if (error) {
+    alert(error.message);
+    return;
+  }
+
+  alert("Claim sent for approval.");
+  loadShifts(); // refresh so button disappears if you want
 };
 
 /* MY SHIFTS */
