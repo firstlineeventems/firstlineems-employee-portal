@@ -9,9 +9,10 @@ body { font-family: system-ui; background:#f5f6f8; margin:0; }
 .container { max-width:900px; margin:40px auto; padding:20px; }
 .card { background:#fff; border-radius:14px; padding:24px; box-shadow:0 10px 25px rgba(0,0,0,.08); }
 .hidden { display:none; }
-.row { display:flex; gap:12px; flex-wrap:wrap; }
+.row { display:flex; gap:12px; flex-wrap:wrap; align-items:center; }
 button { padding:12px 16px; border-radius:10px; border:none; background:#111; color:#fff; font-weight:700; cursor:pointer; }
 button.secondary { background:#eaeaea; color:#111; }
+input { padding:10px; border-radius:8px; border:1px solid #ccc; }
 .error { color:#b00020; font-weight:600; margin-top:8px; }
 .pill { background:#eee; padding:6px 12px; border-radius:999px; font-size:13px; font-weight:700; }
 .debug { font-weight:800; margin-top:10px; }
@@ -23,29 +24,29 @@ button.secondary { background:#eaeaea; color:#111; }
 
 <!-- LOGIN -->
 <div id="login" class="card">
-<h2>Employee Login</h2>
-<input id="email" placeholder="Email" />
-<input id="password" type="password" placeholder="Password" />
-<button id="loginBtn">Login</button>
-<div id="debug" class="debug"></div>
-<div id="loginError" class="error"></div>
+  <h2>Employee Login</h2>
+  <input id="email" placeholder="Email" />
+  <input id="password" type="password" placeholder="Password" />
+  <button id="loginBtn">Login</button>
+  <div id="debug" class="debug"></div>
+  <div id="loginError" class="error"></div>
 </div>
 
 <!-- PORTAL -->
 <div id="portal" class="card hidden">
-<div class="row" style="justify-content:space-between">
-<span id="userEmail" class="pill"></span>
-<button id="logoutBtn" class="secondary">Logout</button>
-</div>
+  <div class="row" style="justify-content:space-between">
+    <span id="userEmail" class="pill"></span>
+    <button id="logoutBtn" class="secondary">Logout</button>
+  </div>
 
-<div class="row" style="margin-top:14px">
-<button id="schedBtn">Scheduling</button>
-<button id="myBtn">My Shifts</button>
-<button id="annBtn">Announcements</button>
-<button id="apprBtn">Approvals</button>
-</div>
+  <div class="row" style="margin-top:14px">
+    <button id="schedBtn">Scheduling</button>
+    <button id="myBtn">My Shifts</button>
+    <button id="annBtn">Announcements</button>
+    <button id="apprBtn">Approvals</button>
+  </div>
 
-<div id="content"></div>
+  <div id="content"></div>
 </div>
 
 </div>
@@ -58,29 +59,37 @@ const supabase = createClient(
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxuZXZ1ZWx3c2lld3hkcm1nY2toIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA3MzMyNjgsImV4cCI6MjA4NjMwOTI2OH0.voDpAvnscFh9-e70-xV4UBxtcO-TwYbU6V0JRPUFFIs"
 );
 
+const esc = s => String(s).replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"}[m]));
+
 const debug = msg => document.getElementById("debug").textContent = msg;
 debug("JS loaded ✅");
 
-const esc = s => String(s).replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"}[m]));
+let CURRENT_USER = null;
+let IS_ADMIN = false;
 
 async function getUser() {
   const { data } = await supabase.auth.getSession();
   return data?.session?.user;
 }
 
-async function isAdmin(userId) {
-  const { data } = await supabase.from("user_roles").select("is_admin").eq("user_id", userId).single();
+async function checkAdmin(userId) {
+  const { data } = await supabase
+    .from("user_roles")
+    .select("is_admin")
+    .eq("user_id", userId)
+    .single();
   return !!data?.is_admin;
 }
 
 /* LOGIN */
 loginBtn.onclick = async () => {
+  loginError.textContent = "";
   const { data, error } = await supabase.auth.signInWithPassword({
     email: email.value,
     password: password.value
   });
   if (error) return loginError.textContent = error.message;
-  showPortal(data.user);
+  await showPortal(data.user);
 };
 
 logoutBtn.onclick = async () => {
@@ -89,23 +98,25 @@ logoutBtn.onclick = async () => {
 };
 
 async function showPortal(user) {
+  CURRENT_USER = user;
+  IS_ADMIN = await checkAdmin(user.id);
+
   login.classList.add("hidden");
   portal.classList.remove("hidden");
   userEmail.textContent = user.email;
 
-  if (!(await isAdmin(user.id))) apprBtn.style.display = "none";
+  if (!IS_ADMIN) apprBtn.style.display = "none";
+  else apprBtn.style.display = "inline-block";
 
-  showSchedule();
+  await showSchedule();
 }
 
 /* SCHEDULING */
 async function showSchedule() {
-  const user = await getUser();
-  const admin = await isAdmin(user.id);
-
   content.innerHTML = `
     <h3>Scheduling</h3>
-    ${admin ? `
+
+    ${IS_ADMIN ? `
     <div class="card">
       <h4>Post Shift</h4>
       <input id="stitle" placeholder="Title" />
@@ -114,18 +125,20 @@ async function showSchedule() {
       <button id="postBtn">Post</button>
       <div id="perr" class="error"></div>
     </div>` : ``}
+
     <div id="list"></div>
   `;
 
-  if (admin) {
+  if (IS_ADMIN) {
     postBtn.onclick = async () => {
       const { error } = await supabase.from("shifts").insert({
         title: stitle.value,
         shift_when: swhen.value,
         shift_where: swhere.value,
-        created_by: user.id
+        created_by: CURRENT_USER.id
       });
-      if (error) perr.textContent = error.message;
+      if (error) return perr.textContent = error.message;
+      stitle.value = swhen.value = swhere.value = "";
       loadShifts();
     };
   }
@@ -134,7 +147,12 @@ async function showSchedule() {
 }
 
 async function loadShifts() {
-  const { data } = await supabase.from("shifts").select("*").is("filled_by", null);
+  const { data } = await supabase
+    .from("shifts")
+    .select("*")
+    .is("filled_by", null)
+    .order("created_at", { ascending: false });
+
   list.innerHTML = data.map(s => `
     <div class="card">
       <b>${esc(s.title)}</b><br>
@@ -145,19 +163,21 @@ async function loadShifts() {
 }
 
 window.claim = async id => {
-  const u = await getUser();
   await supabase.from("shift_claims").insert({
     shift_id: id,
-    user_id: u.id,
-    user_email: u.email
+    user_id: CURRENT_USER.id,
+    user_email: CURRENT_USER.email
   });
   alert("Claim sent");
 };
 
 /* MY SHIFTS */
 myBtn.onclick = async () => {
-  const u = await getUser();
-  const { data } = await supabase.from("shifts").select("*").eq("filled_by", u.id);
+  const { data } = await supabase
+    .from("shifts")
+    .select("*")
+    .eq("filled_by", CURRENT_USER.id);
+
   content.innerHTML = data.length
     ? data.map(s => `<div class="card">${esc(s.title)} ✔</div>`).join("")
     : `<div class="pill">No assigned shifts</div>`;
@@ -165,7 +185,8 @@ myBtn.onclick = async () => {
 
 /* APPROVALS */
 apprBtn.onclick = async () => {
-  const { data } = await supabase.from("shift_claims")
+  const { data } = await supabase
+    .from("shift_claims")
     .select("id,user_id,user_email,shift_id,shifts(title)")
     .eq("status","pending");
 
@@ -178,16 +199,17 @@ apprBtn.onclick = async () => {
 };
 
 window.approve = async (cid,sid,uid) => {
-  await supabase.from("shift_claims").update({status:"approved"}).eq("id",cid);
-  await supabase.from("shifts").update({filled_by:uid}).eq("id",sid);
+  await supabase.from("shift_claims").update({ status:"approved" }).eq("id",cid);
+  await supabase.from("shifts").update({ filled_by:uid }).eq("id",sid);
   apprBtn.onclick();
 };
 
 annBtn.onclick = () => content.innerHTML = `<p>No announcements</p>`;
 schedBtn.onclick = showSchedule;
 
+/* AUTO LOGIN */
 const user = await getUser();
-if (user) showPortal(user);
+if (user) await showPortal(user);
 </script>
 
 </body>
