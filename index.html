@@ -146,6 +146,141 @@ async function showSchedule() {
       return;
     }
 
+    function startOfWeek(d) {
+  // Monday start
+  const date = new Date(d);
+  const day = (date.getDay() + 6) % 7; // Mon=0 ... Sun=6
+  date.setHours(0,0,0,0);
+  date.setDate(date.getDate() - day);
+  return date;
+}
+
+function addDays(d, n) {
+  const x = new Date(d);
+  x.setDate(x.getDate() + n);
+  return x;
+}
+
+function fmtDay(d) {
+  return d.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
+}
+
+function fmtTime(d) {
+  return d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+}
+
+async function showCalendarWeek(weekOffset = 0) {
+  const base = startOfWeek(new Date());
+  const weekStart = addDays(base, weekOffset * 7);
+  const weekEnd = addDays(weekStart, 7);
+
+  content.innerHTML = `
+    <div class="row" style="justify-content:space-between; margin-top:10px;">
+      <h3 style="margin:0;">Weekly Calendar</h3>
+      <div class="row">
+        <button class="secondary" id="prevWeekBtn">◀ Prev</button>
+        <button class="secondary" id="thisWeekBtn">This Week</button>
+        <button class="secondary" id="nextWeekBtn">Next ▶</button>
+      </div>
+    </div>
+
+    <div class="pill" style="margin-top:10px; display:inline-block;">
+      ${fmtDay(weekStart)} – ${fmtDay(addDays(weekStart, 6))}
+    </div>
+
+    <div id="calGrid" style="
+      margin-top:12px;
+      display:grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap:10px;
+    "></div>
+
+    <div id="calErr" class="error"></div>
+  `;
+
+  prevWeekBtn.onclick = () => showCalendarWeek(weekOffset - 1);
+  nextWeekBtn.onclick = () => showCalendarWeek(weekOffset + 1);
+  thisWeekBtn.onclick = () => showCalendarWeek(0);
+
+  const calGrid = document.getElementById("calGrid");
+  const calErr = document.getElementById("calErr");
+
+  // Pull shifts for this week
+  const { data, error } = await supabase
+    .from("shifts")
+    .select("*")
+    .gte("start_time", weekStart.toISOString())
+    .lt("start_time", weekEnd.toISOString())
+    .order("start_time", { ascending: true });
+
+  if (error) {
+    calErr.textContent = error.message;
+    return;
+  }
+
+  // Build 7 day columns
+  const days = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
+
+  days.forEach((dayDate, i) => {
+    const col = document.createElement("div");
+    col.className = "card";
+    col.style.boxShadow = "none";
+    col.style.border = "1px solid #ddd";
+    col.style.padding = "14px";
+
+    const dayStart = new Date(dayDate); dayStart.setHours(0,0,0,0);
+    const dayEnd = new Date(dayDate); dayEnd.setHours(23,59,59,999);
+
+    const dayShifts = (data || []).filter(s => {
+      const st = new Date(s.start_time);
+      return st >= dayStart && st <= dayEnd;
+    });
+
+    col.innerHTML = `
+      <div style="font-weight:900; margin-bottom:8px;">${fmtDay(dayDate)}</div>
+      <div id="day_${i}" style="display:grid; gap:8px;"></div>
+      ${dayShifts.length === 0 ? `<div class="pill" style="margin-top:8px; display:inline-block;">No shifts</div>` : ``}
+    `;
+
+    calGrid.appendChild(col);
+
+    const dayWrap = col.querySelector(`#day_${i}`);
+    dayShifts.forEach(s => {
+      const st = new Date(s.start_time);
+      const en = s.end_time ? new Date(s.end_time) : null;
+
+      const filled = !!s.filled_by;
+      const block = document.createElement("div");
+      block.style.border = "1px solid #ddd";
+      block.style.borderRadius = "10px";
+      block.style.padding = "10px";
+      block.style.background = "#fff";
+
+      block.innerHTML = `
+        <div style="font-weight:800;">${esc(s.title)}</div>
+        <div style="color:#444; margin-top:4px;">
+          ${fmtTime(st)}${en ? ` – ${fmtTime(en)}` : ``}
+        </div>
+        ${s.shift_where ? `<div style="color:#666; margin-top:2px;">${esc(s.shift_where)}</div>` : ``}
+        <div style="margin-top:8px;">
+          ${
+            filled
+              ? `<span class="pill">Filled</span>`
+              : `<button onclick="claim('${s.id}')">Claim</button>`
+          }
+        </div>
+      `;
+
+      dayWrap.appendChild(block);
+    });
+  });
+
+  // Mobile: stack columns vertically
+  if (window.innerWidth < 850) {
+    calGrid.style.gridTemplateColumns = "1fr";
+  }
+}
+
     // clear form
     stitle.value = "";
     sstart.value = "";
