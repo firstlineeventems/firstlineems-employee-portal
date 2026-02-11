@@ -168,7 +168,7 @@ async function loadShifts() {
   list.innerHTML = data.map(s => `
     <div class="card">
       <b>${esc(s.title)}</b><br>
-      ${esc(s.shift_when)}<br>
+      ${new Date(s.start_time).toLocaleString()} – ${new Date(s.end_time).toLocaleString()}<br>
       <button onclick="claim('${s.id}')">Claim</button>
     </div>
   `).join("");
