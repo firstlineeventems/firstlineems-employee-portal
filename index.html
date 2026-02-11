@@ -92,11 +92,21 @@ logoutBtn.onclick = async () => {
 };
 
 async function showPortal(user) {
+  CURRENT_USER = user;
+  IS_ADMIN = await isAdmin(user.id);
+
   login.classList.add("hidden");
   portal.classList.remove("hidden");
   userEmail.textContent = user.email;
 
-  if (!(await isAdmin(user.id))) apprBtn.style.display = "none";
+  if (!IS_ADMIN) {
+    apprBtn.style.display = "none";
+  } else {
+    apprBtn.style.display = "inline-block";
+  }
+
+  await showSchedule();
+}
 
   showSchedule();
 }
