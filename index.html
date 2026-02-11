@@ -131,18 +131,29 @@ async function showSchedule() {
   `;
 
   if (IS_ADMIN) {
-    postBtn.onclick = async () => {
-      const { error } = await supabase.from("shifts").insert({
-        title: stitle.value,
-        shift_when: swhen.value,
-        shift_where: swhere.value,
-        created_by: CURRENT_USER.id
-      });
-      if (error) return perr.textContent = error.message;
-      stitle.value = swhen.value = swhere.value = "";
-      loadShifts();
-    };
-  }
+  postBtn.onclick = async () => {
+    const { error } = await supabase.from("shifts").insert({
+      title: stitle.value,
+      start_time: sstart.value,
+      end_time: send.value,
+      shift_where: swhere.value,
+      created_by: CURRENT_USER.id
+    });
+
+    if (error) {
+      perr.textContent = error.message;
+      return;
+    }
+
+    // clear form
+    stitle.value = "";
+    sstart.value = "";
+    send.value = "";
+    swhere.value = "";
+
+    loadShifts();
+  };
+}
 
   loadShifts();
 }
