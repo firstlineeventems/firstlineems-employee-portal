@@ -175,7 +175,11 @@ a:hover{text-decoration:underline}
     <button id="myBtn">My Requests / Shifts</button>
     <button id="annBtn">Announcements</button>
     <button id="apprBtn">Approvals</button>
+<<<<<<< Updated upstream
     <button id="usersBtn">Users</button>
+=======
+<button id="usersBtn">Users</button>
+>>>>>>> Stashed changes
   </div>
 
   <div id="content"></div>
@@ -406,10 +410,271 @@ async function showPortal(user) {
   userEmail.textContent = user.email;
 
   apprBtn.style.display = IS_ADMIN ? "inline-block" : "none";
+<<<<<<< Updated upstream
   usersBtn.style.display = IS_ADMIN ? "inline-block" : "none";
+=======
+usersBtn.style.display = IS_ADMIN ? "inline-block" : "none";
+>>>>>>> Stashed changes
 
   await showSchedule();
 }
+// ===== Users (admin) =====
+async function callAdminUsers(payload) {
+  const { data: sessionData } = await supabase.auth.getSession();
+  const token = sessionData?.session?.access_token;
+  if (!token) throw new Error("Not logged in.");
+
+  const url = "https://lnevuelwsiewxdrmgckh.supabase.co/functions/v1/admin_users";
+
+  const res = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": "Bearer " + token,
+    },
+    body: JSON.stringify(payload),
+  });
+
+  const out = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(out?.error || "Request failed");
+  return out;
+}
+
+async function showUsers() {
+  if (!IS_ADMIN) return alert("Admins only.");
+  setActiveNav(usersBtn);
+
+  content.innerHTML = `
+    <div class="row" style="justify-content:space-between; align-items:flex-end;">
+      <div>
+        <h3>Users</h3>
+        <div class="small">Create users, set roles, reset passwords, and remove users.</div>
+      </div>
+      <span class="pill blue">Admin</span>
+    </div>
+
+    <div class="card sectionCard">
+      <h4>Create User</h4>
+      <div class="row">
+        <div style="flex:1; min-width:240px;">
+          <label>Email</label>
+          <input id="newUEmail" placeholder="name@email.com" style="width:100%;" />
+        </div>
+        <div style="flex:1; min-width:220px;">
+          <label>Temp Password</label>
+          <input id="newUPass" placeholder="Temporary password" style="width:100%;" />
+        </div>
+      </div>
+
+      <div class="row" style="margin-top:10px;">
+        <div style="flex:1; min-width:220px;">
+          <label>Role</label>
+          <select id="newURole" style="width:100%;">
+            <option value="">None</option>
+            <option value="EMT">EMT</option>
+            <option value="EMR">EMR</option>
+            <option value="Driver">Driver</option>
+            <option value="Supervisor">Supervisor</option>
+          </select>
+        </div>
+
+        <div style="flex:1; min-width:220px;">
+          <label style="display:flex; gap:10px; align-items:center; margin-top:28px;">
+            <input id="newUDriver" type="checkbox" style="width:18px; height:18px;" />
+            Driver
+          </label>
+        </div>
+
+        <div style="flex:1; min-width:220px;">
+          <label style="display:flex; gap:10px; align-items:center; margin-top:28px;">
+            <input id="newUAdmin" type="checkbox" style="width:18px; height:18px;" />
+            Admin
+          </label>
+        </div>
+      </div>
+
+      <div class="row" style="margin-top:12px;">
+        <button id="createUserBtn">Create</button>
+        <div id="usersErr" class="error"></div>
+      </div>
+    </div>
+
+    <div class="card sectionCard">
+      <div class="row" style="justify-content:space-between;">
+        <h4 style="margin:0;">All Users</h4>
+        <button class="secondary" id="refreshUsersBtn">Refresh</button>
+      </div>
+      <div id="usersList" style="margin-top:12px; display:grid; gap:12px;"></div>
+    </div>
+  `;
+
+  async function refresh() {
+    usersErr.textContent = "";
+    usersList.innerHTML = `<div class="pill">Loading...</div>`;
+
+    try {
+      const out = await callAdminUsers({ action: "list" });
+      const users = out?.users || [];
+
+      usersList.innerHTML = users.map(u => {
+        const r = u.roles || {};
+        const email = u.email || "";
+        const created = u.created_at ? new Date(u.created_at).toLocaleString() : "";
+        const last = u.last_sign_in_at ? new Date(u.last_sign_in_at).toLocaleString() : "—";
+
+        return `
+          <div class="card" style="box-shadow:none;">
+            <div class="row" style="justify-content:space-between; align-items:flex-start;">
+              <div>
+                <div style="font-weight:1000;">${esc(email)}</div>
+                <div class="small" style="margin-top:6px;">
+                  Created: ${esc(created)} • Last sign-in: ${esc(last)}
+                </div>
+                <div class="row" style="margin-top:10px;">
+                  <span class="pill ${r.is_admin ? "blue" : ""}">Admin: ${r.is_admin ? "Yes" : "No"}</span>
+                  <span class="pill">Role: ${esc(r.role || "None")}</span>
+                  <span class="pill">Driver: ${r.is_driver ? "Yes" : "No"}</span>
+                </div>
+              </div>
+            </div>
+
+            <hr>
+
+            <div class="row">
+              <div style="min-width:200px;">
+                <label>Role</label>
+                <select id="role_${u.id}">
+                  <option value="">None</option>
+                  <option value="EMT">EMT</option>
+                  <option value="EMR">EMR</option>
+                  <option value="Driver">Driver</option>
+                  <option value="Supervisor">Supervisor</option>
+                </select>
+              </div>
+
+              <div style="min-width:160px;">
+                <label style="display:flex; gap:10px; align-items:center; margin-top:28px;">
+                  <input id="drv_${u.id}" type="checkbox" style="width:18px; height:18px;" />
+                  Driver
+                </label>
+              </div>
+
+              <div style="min-width:160px;">
+                <label style="display:flex; gap:10px; align-items:center; margin-top:28px;">
+                  <input id="adm_${u.id}" type="checkbox" style="width:18px; height:18px;" />
+                  Admin
+                </label>
+              </div>
+            </div>
+
+            <div class="row" style="margin-top:12px;">
+              <button class="secondary" onclick="saveUserRoles('${u.id}')">Save Roles</button>
+              <button class="secondary" onclick="resetUserPass('${u.id}')">Reset Password</button>
+              <button class="danger" onclick="deleteUser('${u.id}','${esc(email).replace(/'/g,"&#039;")}')">Delete</button>
+            </div>
+
+            <div class="small" style="margin-top:8px;">
+              Reset Password sets a new temp password you choose (you’ll be prompted).
+            </div>
+          </div>
+        `;
+      }).join("") || `<div class="pill">No users found</div>`;
+
+      // populate defaults after render
+      users.forEach(u => {
+        const r = u.roles || {};
+        const roleSel = document.getElementById(`role_${u.id}`);
+        const drv = document.getElementById(`drv_${u.id}`);
+        const adm = document.getElementById(`adm_${u.id}`);
+        if (roleSel) roleSel.value = r.role || "";
+        if (drv) drv.checked = !!r.is_driver;
+        if (adm) adm.checked = !!r.is_admin;
+      });
+    } catch (e) {
+      usersErr.textContent = e.message || String(e);
+      usersList.innerHTML = "";
+    }
+  }
+
+  createUserBtn.onclick = async () => {
+    usersErr.textContent = "";
+    try {
+      const email = (newUEmail.value || "").trim();
+      const password = (newUPass.value || "").trim();
+      const role = (newURole.value || "").trim() || null;
+      const is_driver = !!newUDriver.checked;
+      const is_admin = !!newUAdmin.checked;
+
+      if (!email || !password) {
+        usersErr.textContent = "Email and temp password required.";
+        return;
+      }
+
+      await callAdminUsers({ action: "create", email, password, role, is_driver, is_admin });
+
+      newUEmail.value = "";
+      newUPass.value = "";
+      newURole.value = "";
+      newUDriver.checked = false;
+      newUAdmin.checked = false;
+
+      alert("User created ✅");
+      await refresh();
+    } catch (e) {
+      usersErr.textContent = e.message || String(e);
+    }
+  };
+
+  refreshUsersBtn.onclick = refresh;
+
+  // expose helpers
+  window.saveUserRoles = async (id) => {
+    try {
+      const role = (document.getElementById(`role_${id}`)?.value || "").trim() || null;
+      const is_driver = !!document.getElementById(`drv_${id}`)?.checked;
+      const is_admin = !!document.getElementById(`adm_${id}`)?.checked;
+
+      await callAdminUsers({
+        action: "update",
+        id,
+        roles: { role, is_driver, is_admin }
+      });
+
+      alert("Roles updated ✅");
+      await refresh();
+    } catch (e) {
+      alert(e.message || String(e));
+    }
+  };
+
+  window.resetUserPass = async (id) => {
+    const pw = prompt("Enter a NEW temp password for this user:");
+    if (!pw) return;
+
+    try {
+      await callAdminUsers({ action: "update", id, password: pw });
+      alert("Password reset ✅ (give them the temp password)");
+    } catch (e) {
+      alert(e.message || String(e));
+    }
+  };
+
+  window.deleteUser = async (id, email) => {
+    if (!confirm(`Delete user?\n\n${email}\n\nThis removes their account.`)) return;
+
+    try {
+      await callAdminUsers({ action: "delete", id });
+      alert("User deleted ✅");
+      await refresh();
+    } catch (e) {
+      alert(e.message || String(e));
+    }
+  };
+
+  await refresh();
+}
+
+usersBtn.onclick = showUsers;
 
 // ===== Core data helpers for slots / claims =====
 async function getApprovedCountsForShiftIds(shiftIds) {
