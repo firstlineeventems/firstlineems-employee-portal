@@ -15,11 +15,15 @@ const esc = (s) =>
     "'": "&#039;"
   }[m]));
 
+const esc = s => String(s ?? "").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"}[m]));
+
 const debug = (msg) => {
   const el = document.getElementById("debug");
   if (el) el.textContent = msg;
+  console.log("[PORTAL]", msg);
 };
-debug("JS loaded ✅");
+
+debug("JS loaded ✅ (vercel-test)");
 
 let CURRENT_USER = null;
 let IS_ADMIN = false;
