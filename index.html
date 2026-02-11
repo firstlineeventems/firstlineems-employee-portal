@@ -23,6 +23,7 @@ hr { border:none; border-top:1px solid #eee; margin:16px 0; }
 .small { color:#666; font-size:13px; }
 .noteBox { margin-top:10px; padding:12px; border:1px solid #ddd; border-radius:12px; background:#fafafa; }
 .noteTitle { font-weight:900; margin-bottom:6px; }
+label { font-weight:800; display:block; margin:10px 0 6px; }
 </style>
 </head>
 <body>
@@ -92,6 +93,19 @@ async function checkAdmin(userId) {
 function fmtDT(dt) {
   if (!dt) return "";
   try { return new Date(dt).toLocaleString(); } catch { return String(dt); }
+}
+
+function toLocalInputValue(isoOrValue) {
+  if (!isoOrValue) return "";
+  const d = new Date(isoOrValue);
+  if (isNaN(d.getTime())) return "";
+  const pad = (n) => String(n).padStart(2, "0");
+  const yyyy = d.getFullYear();
+  const mm = pad(d.getMonth()+1);
+  const dd = pad(d.getDate());
+  const hh = pad(d.getHours());
+  const mi = pad(d.getMinutes());
+  return `${yyyy}-${mm}-${dd}T${hh}:${mi}`;
 }
 
 // Monday-start week helpers
@@ -184,6 +198,17 @@ function slotsText(approvedCount, crewSize) {
   const cs = Math.max(1, Number(crewSize || 1));
   const ac = Number(approvedCount || 0);
   return `${ac}/${cs} filled`;
+}
+
+function renderNotesBox(notes) {
+  const n = (notes || "").trim();
+  if (!n) return "";
+  return `
+    <div class="noteBox">
+      <div class="noteTitle">Notes</div>
+      <div>${esc(n).replace(/\n/g,"<br>")}</div>
+    </div>
+  `;
 }
 
 // ===== Scheduling (list) =====
@@ -306,16 +331,15 @@ async function loadShifts() {
     else if (mine === "removal_requested") claimBtnHtml = `<span class="pill">Removal requested</span>`;
     else claimBtnHtml = `<button onclick="claimShift('${s.id}')">Claim</button>`;
 
-    const notesHtml = (s.notes && String(s.notes).trim().length)
-      ? `<div class="noteBox"><div class="noteTitle">Notes</div><div>${esc(s.notes).replace(/\n/g,"<br>")}</div></div>`
-      : ``;
+    const notesHtml = renderNotesBox(s.notes);
 
     const adminBtns = IS_ADMIN ? `
       <div class="row" style="margin-top:10px;">
+        <button class="secondary" onclick="editShift('${s.id}')">Edit</button>
         <button class="secondary" onclick="manageShift('${s.id}')">Manage</button>
         <button class="danger" onclick="deleteShift('${s.id}')">Delete</button>
       </div>
-      <div class="small">Manage = remove approved members. Delete = remove shift entirely.</div>
+      <div class="small">Edit = change time/crew/notes. Manage = remove approved members. Delete = remove shift entirely.</div>
     ` : ``;
 
     return `
@@ -335,6 +359,125 @@ async function loadShifts() {
     `;
   }).join("") || `<div class="pill" style="margin-top:12px;">No shifts posted yet</div>`;
 }
+
+// ===== Admin: Edit Shift =====
+window.editShift = async (shiftId) => {
+  if (!IS_ADMIN) return alert("Admins only.");
+
+  const { data: shift, error: sErr } = await supabase
+    .from("shifts")
+    .select("*")
+    .eq("id", shiftId)
+    .single();
+  if (sErr) return alert(sErr.message);
+
+  // count approvals so we don't allow crew_size < approved_count
+  const { data: appr, error: aErr } = await supabase
+    .from("shift_claims")
+    .select("id")
+    .eq("shift_id", shiftId)
+    .eq("status", "approved");
+  if (aErr) return alert(aErr.message);
+
+  const approvedCount = (appr || []).length;
+
+  content.innerHTML = `
+    <div class="row" style="justify-content:space-between;">
+      <h3 style="margin:0;">Edit Shift</h3>
+      <div class="row">
+        <button class="secondary" onclick="showSchedule()">Back</button>
+        <button class="danger" onclick="deleteShift('${shiftId}')">Delete</button>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:12px;">
+      <div class="pill">Approved: ${approvedCount}</div>
+
+      <label>Title</label>
+      <input id="etitle" style="width:100%;" />
+
+      <div class="row" style="margin-top:10px;">
+        <div style="flex:1; min-width:200px;">
+          <label>Start</label>
+          <input id="estart" type="datetime-local" style="width:100%;" />
+        </div>
+        <div style="flex:1; min-width:200px;">
+          <label>End</label>
+          <input id="eend" type="datetime-local" style="width:100%;" />
+        </div>
+      </div>
+
+      <label>Where</label>
+      <input id="ewhere" style="width:100%;" />
+
+      <label>Crew Size</label>
+      <input id="ecrew" type="number" min="1" style="width:160px;" />
+      <div class="small">Crew size cannot be less than approved count (${approvedCount}).</div>
+
+      <label>Notes / Instructions</label>
+      <textarea id="enotes"></textarea>
+
+      <button id="saveShiftBtn" style="margin-top:12px;">Save Changes</button>
+      <div id="eerr" class="error"></div>
+    </div>
+  `;
+
+  // populate
+  document.getElementById("etitle").value = shift.title || "";
+  document.getElementById("estart").value = toLocalInputValue(shift.start_time);
+  document.getElementById("eend").value = toLocalInputValue(shift.end_time);
+  document.getElementById("ewhere").value = shift.shift_where || "";
+  document.getElementById("ecrew").value = String(Math.max(1, Number(shift.crew_size || 1)));
+  document.getElementById("enotes").value = shift.notes || "";
+
+  document.getElementById("saveShiftBtn").onclick = async () => {
+    const eerr = document.getElementById("eerr");
+    eerr.textContent = "";
+
+    const title = document.getElementById("etitle").value.trim();
+    const startVal = document.getElementById("estart").value;
+    const endVal = document.getElementById("eend").value;
+    const where = document.getElementById("ewhere").value.trim();
+    const notes = document.getElementById("enotes").value.trim();
+    const crew = Math.max(1, parseInt(document.getElementById("ecrew").value || "1", 10));
+
+    if (!title || !startVal || !endVal) {
+      eerr.textContent = "Title, start, and end are required.";
+      return;
+    }
+
+    if (crew < approvedCount) {
+      eerr.textContent = `Crew size cannot be less than approved count (${approvedCount}).`;
+      return;
+    }
+
+    const { data: updated, error } = await supabase
+      .from("shifts")
+      .update({
+        title,
+        start_time: startVal,
+        end_time: endVal,
+        shift_where: where,
+        crew_size: crew,
+        notes
+      })
+      .eq("id", shiftId)
+      .select("id");
+
+    if (error) {
+      eerr.textContent = error.message;
+      return;
+    }
+
+    if (!updated || updated.length === 0) {
+      eerr.textContent = "Update blocked (no rows updated). This is usually an RLS/policy issue.";
+      return;
+    }
+
+    alert("Shift updated.");
+    await showSchedule();
+  };
+};
 
 // ===== Claim / Cancel / Removal Request =====
 window.claimShift = async (shiftId) => {
@@ -423,9 +566,7 @@ async function showMyRequests() {
   const approved = rows.filter(r => r.status === "approved");
   const removal = rows.filter(r => r.status === "removal_requested");
 
-  const renderNotes = (n) => (n && String(n).trim().length)
-    ? `<div class="noteBox"><div class="noteTitle">Notes</div><div>${esc(n).replace(/\n/g,"<br>")}</div></div>`
-    : ``;
+  const renderNotes = (n) => renderNotesBox(n);
 
   content.innerHTML = `
     <h3>My Requests / Shifts</h3>
@@ -503,10 +644,6 @@ apprBtn.onclick = async () => {
   const shiftIds = Array.from(new Set([...(pending||[]).map(x=>x.shift_id), ...(removal||[]).map(x=>x.shift_id)]));
   const approvedCounts = await getApprovedCountsForShiftIds(shiftIds);
 
-  const notesBlock = (n) => (n && String(n).trim().length)
-    ? `<div class="noteBox"><div class="noteTitle">Notes</div><div>${esc(n).replace(/\n/g,"<br>")}</div></div>`
-    : ``;
-
   content.innerHTML = `
     <h3>Approvals</h3>
 
@@ -523,7 +660,7 @@ apprBtn.onclick = async () => {
           ${fmtDT(s.start_time)}${s.end_time ? ` – ${fmtDT(s.end_time)}` : ""}<br>
           ${s.shift_where ? `<span class="pill">${esc(s.shift_where)}</span>` : ``}
           <span class="pill" style="margin-left:8px;">${slotsText(ac, cs)}</span>
-          ${notesBlock(s.notes)}
+          ${renderNotesBox(s.notes)}
           <div style="margin-top:10px;">Claimed by: <b>${esc(c.user_email || c.user_id)}</b></div>
           <div class="row" style="margin-top:10px;">
             <button ${full ? "disabled" : ""} onclick="approveClaim('${c.id}')">
@@ -549,7 +686,7 @@ apprBtn.onclick = async () => {
           ${fmtDT(s.start_time)}${s.end_time ? ` – ${fmtDT(s.end_time)}` : ""}<br>
           ${s.shift_where ? `<span class="pill">${esc(s.shift_where)}</span>` : ``}
           <span class="pill" style="margin-left:8px;">${slotsText(ac, cs)}</span>
-          ${notesBlock(s.notes)}
+          ${renderNotesBox(s.notes)}
           <div style="margin-top:10px;">Employee: <b>${esc(c.user_email || c.user_id)}</b></div>
           <div class="row" style="margin-top:10px;">
             <button onclick="approveRemoval('${c.id}')">Approve Removal</button>
@@ -628,15 +765,12 @@ window.manageShift = async (shiftId) => {
   const cs = Math.max(1, Number(shift.crew_size || 1));
   const ac = (approved || []).length;
 
-  const notesHtml = (shift.notes && String(shift.notes).trim().length)
-    ? `<div class="noteBox"><div class="noteTitle">Notes</div><div>${esc(shift.notes).replace(/\n/g,"<br>")}</div></div>`
-    : ``;
-
   content.innerHTML = `
     <div class="row" style="justify-content:space-between;">
       <h3 style="margin:0;">Manage Shift</h3>
       <div class="row">
         <button class="secondary" onclick="showSchedule()">Back</button>
+        <button class="secondary" onclick="editShift('${shiftId}')">Edit</button>
         <button class="danger" onclick="deleteShift('${shiftId}')">Delete Shift</button>
       </div>
     </div>
@@ -646,7 +780,7 @@ window.manageShift = async (shiftId) => {
       ${fmtDT(shift.start_time)}${shift.end_time ? ` – ${fmtDT(shift.end_time)}` : ""}<br>
       ${shift.shift_where ? `<span class="pill">${esc(shift.shift_where)}</span>` : ``}
       <span class="pill" style="margin-left:8px;">${slotsText(ac, cs)}</span>
-      ${notesHtml}
+      ${renderNotesBox(shift.notes)}
       <div class="small" style="margin-top:8px;">Remove an employee to free a slot.</div>
     </div>
 
@@ -795,10 +929,6 @@ async function showCalendarWeek(weekOffset = 0) {
       else if (mine === "removal_requested") actionHtml = `<span class="pill">Removal req.</span>`;
       else actionHtml = `<button onclick="claimShift('${s.id}')">Claim</button>`;
 
-      const notesHtml = (s.notes && String(s.notes).trim().length)
-        ? `<div class="noteBox" style="margin-top:8px;"><div class="noteTitle">Notes</div><div>${esc(s.notes).replace(/\n/g,"<br>")}</div></div>`
-        : ``;
-
       const block = document.createElement("div");
       block.style.border = "1px solid #ddd";
       block.style.borderRadius = "10px";
@@ -815,7 +945,7 @@ async function showCalendarWeek(weekOffset = 0) {
           <span class="pill">${slotsText(ac, cs)}</span>
           <div style="margin-top:8px;">${actionHtml}</div>
         </div>
-        ${notesHtml}
+        ${renderNotesBox(s.notes)}
       `;
 
       dayWrap.appendChild(block);
