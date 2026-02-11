@@ -100,6 +100,16 @@ a:hover{text-decoration:underline}
   padding:10px 12px; border:1px solid var(--line); border-radius:12px;
   background:#fff; box-shadow:none; font-weight:1000;
 }
+
+/* Users table */
+.tableWrap{margin-top:12px; overflow:auto; border:1px solid var(--line); border-radius:14px; background:#fff;}
+.table{width:100%; border-collapse:separate; border-spacing:0; min-width:880px;}
+.table th, .table td{padding:10px 12px; border-bottom:1px solid var(--line); font-size:14px; text-align:left; vertical-align:top;}
+.table th{background:#f9fafb; font-weight:1000;}
+.table tr:last-child td{border-bottom:none;}
+.table td select{width:100%;}
+.cb{width:18px; height:18px;}
+
 @media (max-width: 900px){
   .grid5{grid-template-columns: 1fr 1fr}
   .container{margin:20px auto}
@@ -165,6 +175,7 @@ a:hover{text-decoration:underline}
     <button id="myBtn">My Requests / Shifts</button>
     <button id="annBtn">Announcements</button>
     <button id="apprBtn">Approvals</button>
+    <button id="usersBtn">Users</button>
   </div>
 
   <div id="content"></div>
@@ -190,7 +201,7 @@ let MY_CREDS = { role: null, is_driver: false };
 
 // ===== nav active state =====
 function setActiveNav(btn){
-  [schedBtn, calBtn, myBtn, annBtn, apprBtn].forEach(b => b.classList.remove("active"));
+  [schedBtn, calBtn, myBtn, annBtn, apprBtn, usersBtn].forEach(b => b.classList.remove("active"));
   if (btn) btn.classList.add("active");
 }
 
@@ -277,13 +288,11 @@ function renderEventMapLink(url) {
   if (!u) return "";
   return `<a href="${esc(u)}" target="_blank" rel="noopener">🗺️ Event Map</a>`;
 }
-
 function renderDirectionsLinkFromUrl(url) {
   const u = (url || "").trim();
   if (!u) return "";
   return `<a href="${esc(u)}" target="_blank" rel="noopener">🧭 Directions</a>`;
 }
-
 function renderLinkRow(mapUrl, directionsUrl) {
   const a = [];
   const map = renderEventMapLink(mapUrl);
@@ -301,9 +310,7 @@ function reqPills(s) {
   if (s.requires_driver) pills.push(`<span class="pill warn">Driver required</span>`);
   return pills.length ? `<div class="row" style="margin-top:10px;">${pills.join("")}</div>` : "";
 }
-
 function canUserClaimShift(s) {
-  // returns { ok:boolean, reason:string }
   if (s.required_role) {
     const need = String(s.required_role).trim().toLowerCase();
     const have = String(MY_CREDS.role || "").trim().toLowerCase();
@@ -322,7 +329,6 @@ function buildShiftShareText(s) {
   parts.push(`When: ${fmtDT(s.start_time)}${s.end_time ? " – " + fmtDT(s.end_time) : ""}`);
   if (s.shift_where) parts.push(`Where: ${s.shift_where}`);
 
-  // requirements line
   const reqBits = [];
   if (s.required_role) reqBits.push(`Role: ${s.required_role}`);
   if (s.requires_driver) reqBits.push(`Driver required`);
@@ -349,7 +355,6 @@ async function copyTextToClipboard(text) {
     await navigator.clipboard.writeText(text);
     return true;
   } catch {
-    // fallback
     try {
       const ta = document.createElement("textarea");
       ta.value = text;
@@ -375,7 +380,7 @@ window.copyShiftShare = async (shiftObjJson) => {
   alert(ok ? "Copied shift message ✅" : "Copy failed — your browser blocked clipboard access.");
 };
 
-// ===== auth UI =====
+// ===== AUTH UI =====
 loginBtn.onclick = async () => {
   loginError.textContent = "";
   const { data, error } = await supabase.auth.signInWithPassword({
@@ -401,6 +406,7 @@ async function showPortal(user) {
   userEmail.textContent = user.email;
 
   apprBtn.style.display = IS_ADMIN ? "inline-block" : "none";
+  usersBtn.style.display = IS_ADMIN ? "inline-block" : "none";
 
   await showSchedule();
 }
@@ -447,6 +453,223 @@ function slotsText(approvedCount, crewSize) {
   const ac = Number(approvedCount || 0);
   return `${ac}/${cs} filled`;
 }
+
+// ===== USERS (ADMIN) =====
+async function callAdminUsers(body) {
+  // Uses logged-in JWT automatically
+  const { data, error } = await supabase.functions.invoke("admin_users", { body });
+  if (error) throw new Error(error.message);
+  if (data?.error) throw new Error(data.error);
+  return data;
+}
+
+async function showUsers() {
+  if (!IS_ADMIN) return alert("Admins only.");
+  setActiveNav(usersBtn);
+
+  content.innerHTML = `
+    <div class="row" style="justify-content:space-between; align-items:flex-end;">
+      <div>
+        <h3>Users</h3>
+        <div class="small">Create users, set admin/role/driver, reset passwords, and delete.</div>
+      </div>
+      <button id="refreshUsersBtn" class="secondary">Refresh</button>
+    </div>
+
+    <div class="card sectionCard">
+      <h4>Add User</h4>
+
+      <div class="row">
+        <div style="flex:1; min-width:240px;">
+          <label>Email</label>
+          <input id="u_email" placeholder="name@email.com" style="width:100%;" />
+        </div>
+        <div style="flex:1; min-width:240px;">
+          <label>Temp Password</label>
+          <input id="u_pass" placeholder="Temporary password" style="width:100%;" />
+        </div>
+      </div>
+
+      <div class="row" style="margin-top:8px;">
+        <div style="flex:1; min-width:240px;">
+          <label>Role</label>
+          <select id="u_role" style="width:100%;">
+            <option value="">(none)</option>
+            <option value="EMT">EMT</option>
+            <option value="EMR">EMR</option>
+            <option value="Driver">Driver</option>
+            <option value="Supervisor">Supervisor</option>
+          </select>
+        </div>
+
+        <div style="min-width:240px;">
+          <label style="display:flex; gap:10px; align-items:center; margin-top:28px;">
+            <input id="u_driver" type="checkbox" class="cb" />
+            Driver
+          </label>
+          <label style="display:flex; gap:10px; align-items:center; margin-top:10px;">
+            <input id="u_admin" type="checkbox" class="cb" />
+            Admin
+          </label>
+        </div>
+      </div>
+
+      <div class="row" style="margin-top:12px;">
+        <button id="addUserBtn">Create User</button>
+        <div id="u_err" class="error"></div>
+      </div>
+
+      <div class="small" style="margin-top:8px;">
+        Tip: Use “Reset Pass” later to change passwords.
+      </div>
+    </div>
+
+    <div class="row" style="margin-top:14px;">
+      <div style="flex:1; min-width:240px;">
+        <label>Search</label>
+        <input id="u_search" placeholder="Search email..." style="width:100%;" />
+      </div>
+    </div>
+
+    <div id="usersTableWrap" class="tableWrap"></div>
+  `;
+
+  refreshUsersBtn.onclick = loadUsersTable;
+  u_search.oninput = () => loadUsersTable();
+
+  addUserBtn.onclick = async () => {
+    u_err.textContent = "";
+    const email = u_email.value.trim().toLowerCase();
+    const password = u_pass.value.trim();
+    const role = u_role.value || null;
+    const is_driver = !!u_driver.checked;
+    const is_admin = !!u_admin.checked;
+
+    if (!email || !password) {
+      u_err.textContent = "Email + temp password required.";
+      return;
+    }
+
+    try {
+      await callAdminUsers({ action: "create", email, password, role, is_driver, is_admin });
+      u_email.value = "";
+      u_pass.value = "";
+      u_role.value = "";
+      u_driver.checked = false;
+      u_admin.checked = false;
+      await loadUsersTable();
+      alert("User created ✅");
+    } catch (e) {
+      u_err.textContent = e.message || String(e);
+    }
+  };
+
+  await loadUsersTable();
+}
+
+async function loadUsersTable() {
+  const wrap = document.getElementById("usersTableWrap");
+  if (!wrap) return;
+  wrap.innerHTML = `<div class="pill" style="margin:12px;">Loading users…</div>`;
+
+  try {
+    const data = await callAdminUsers({ action: "list" });
+    const users = data.users || [];
+    const q = (document.getElementById("u_search")?.value || "").trim().toLowerCase();
+    const filtered = q ? users.filter(u => String(u.email||"").toLowerCase().includes(q)) : users;
+
+    wrap.innerHTML = `
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Email</th>
+            <th>Role</th>
+            <th>Driver</th>
+            <th>Admin</th>
+            <th>Created</th>
+            <th>Last Sign-in</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${filtered.map(u => `
+            <tr>
+              <td>
+                <div style="font-weight:1000;">${esc(u.email || "")}</div>
+                <div class="small">ID: ${esc(u.id)}</div>
+              </td>
+
+              <td style="min-width:170px;">
+                <select id="role_${esc(u.id)}">
+                  <option value="">(none)</option>
+                  <option value="EMT" ${u.roles?.role==="EMT"?"selected":""}>EMT</option>
+                  <option value="EMR" ${u.roles?.role==="EMR"?"selected":""}>EMR</option>
+                  <option value="Driver" ${u.roles?.role==="Driver"?"selected":""}>Driver</option>
+                  <option value="Supervisor" ${u.roles?.role==="Supervisor"?"selected":""}>Supervisor</option>
+                </select>
+              </td>
+
+              <td><input id="drv_${esc(u.id)}" type="checkbox" class="cb" ${u.roles?.is_driver ? "checked" : ""} /></td>
+              <td><input id="adm_${esc(u.id)}" type="checkbox" class="cb" ${u.roles?.is_admin ? "checked" : ""} /></td>
+
+              <td class="small">${esc(fmtDT(u.created_at))}</td>
+              <td class="small">${esc(fmtDT(u.last_sign_in_at))}</td>
+
+              <td style="min-width:260px;">
+                <button class="secondary" onclick="saveUser('${esc(u.id)}')">Save</button>
+                <button class="secondary" onclick="resetPassPrompt('${esc(u.id)}')">Reset Pass</button>
+                <button class="danger" onclick="deleteUser('${esc(u.id)}','${esc(u.email||"")}')">Delete</button>
+              </td>
+            </tr>
+          `).join("")}
+        </tbody>
+      </table>
+
+      <div class="small" style="margin:12px;">
+        Save updates role/driver/admin. Reset Pass sets a new password. Delete is permanent.
+      </div>
+    `;
+  } catch (e) {
+    wrap.innerHTML = `<div class="error" style="margin:12px;">${esc(e.message || String(e))}</div>`;
+  }
+}
+
+window.saveUser = async (id) => {
+  const role = document.getElementById("role_" + id)?.value || null;
+  const is_driver = !!document.getElementById("drv_" + id)?.checked;
+  const is_admin = !!document.getElementById("adm_" + id)?.checked;
+
+  try {
+    await callAdminUsers({ action: "update", id, roles: { role, is_driver, is_admin } });
+    alert("Saved ✅");
+  } catch (e) {
+    alert("Save failed: " + (e.message || String(e)));
+  }
+};
+
+window.resetPassPrompt = async (id) => {
+  const pw = prompt("Enter NEW password for this user:");
+  if (!pw) return;
+  try {
+    await callAdminUsers({ action: "update", id, password: pw });
+    alert("Password reset ✅");
+  } catch (e) {
+    alert("Reset failed: " + (e.message || String(e)));
+  }
+};
+
+window.deleteUser = async (id, email) => {
+  if (!confirm(`DELETE USER?\n\n${email}\n\nThis cannot be undone.`)) return;
+  try {
+    await callAdminUsers({ action: "delete", id });
+    await loadUsersTable();
+    alert("User deleted ✅");
+  } catch (e) {
+    alert("Delete failed: " + (e.message || String(e)));
+  }
+};
+
+usersBtn.onclick = showUsers;
 
 // ===== Scheduling (list) =====
 async function showSchedule() {
@@ -826,7 +1049,6 @@ window.editShift = async (shiftId) => {
 
 // ===== Claim / Cancel / Removal Request =====
 window.claimShift = async (shiftId) => {
-  // quick client-side gate (server-side is better, but this prevents obvious mismatch)
   const { data: shift, error: sErr } = await supabase
     .from("shifts")
     .select("id,crew_size,required_role,requires_driver")
@@ -1032,7 +1254,7 @@ apprBtn.onclick = async () => {
           <div style="margin-top:10px;">Employee: <b>${esc(c.user_email || c.user_id)}</b></div>
           <div class="row" style="margin-top:10px;">
             <button onclick="approveRemoval('${c.id}')">Approve Removal</button>
-            <button class="secondary" onclick="denyRemoval('${c.id}')">Deny Removal</button>
+            <button class="secondary" onclick="denyRemoval('${c.id}')">Deny</button>
           </div>
         </div>
       `;
