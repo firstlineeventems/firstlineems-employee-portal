@@ -60,6 +60,9 @@ const supabase = createClient(
 
 const debug = msg => document.getElementById("debug").textContent = msg;
 debug("JS loaded ✅");
+let CURRENT_USER = null;
+let IS_ADMIN = false;
+
 
 const esc = s => String(s).replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"}[m]));
 
