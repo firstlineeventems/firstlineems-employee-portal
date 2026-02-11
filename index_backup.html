@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>First Line EMS Employee Portal</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<style>
+body { font-family: system-ui; background:#f5f6f8; margin:0; }
+.container { max-width:900px; margin:40px auto; padding:20px; }
+.card { background:#fff; border-radius:14px; padding:24px; box-shadow:0 10px 25px rgba(0,0,0,.08); }
+.hidden { display:none; }
+.row { display:flex; gap:12px; flex-wrap:wrap; align-items:center; }
+button { padding:12px 16px; border-radius:10px; border:none; background:#111; color:#fff; font-weight:700; cursor:pointer; }
+button.secondary { background:#eaeaea; color:#111; }
+input { padding:10px; border-radius:8px; border:1px solid #ccc; }
+.error { color:#b00020; font-weight:600; margin-top:8px; }
+.pill { background:#eee; padding:6px 12px; border-radius:999px; font-size:13px; font-weight:700; }
+.debug { font-weight:800; margin-top:10px; }
+</style>
+</head>
+<body>
+
+<div class="container">
+
+<!-- LOGIN -->
+<div id="login" class="card">
+  <h2>Employee Login</h2>
+  <input id="email" placeholder="Email" />
+  <input id="password" type="password" placeholder="Password" />
+  <button id="loginBtn">Login</button>
+  <div id="debug" class="debug"></div>
+  <div id="loginError" class="error"></div>
+</div>
+
+<!-- PORTAL -->
+<div id="portal" class="card hidden">
+  <div class="row" style="justify-content:space-between">
+    <span id="userEmail" class="pill"></span>
+    <button id="logoutBtn" class="secondary">Logout</button>
+  </div>
+
+  <div class="row" style="margin-top:14px">
+    <button id="schedBtn">Scheduling</button>
+    <button id="calBtn">Calendar</button>
+    <button id="myBtn">My Shifts</button>
+    <button id="annBtn">Announcements</button>
+    <button id="apprBtn">Approvals</button>
+  </div>
+
+  <div id="content"></div>
+</div>
+
+</div>
+
+<script type="module">
+import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
+
+const supabase = createClient(
+  "https://lnevuelwsiewxdrmgckh.supabase.co",
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxuZXZ1ZWx3c2lld3hkcm1nY2toIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA3MzMyNjgsImV4cCI6MjA4NjMwOTI2OH0.voDpAvnscFh9-e70-xV4UBxtcO-TwYbU6V0JRPUFFIs"
+);
+
+const esc = s => String(s ?? "").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"}[m]));
+const debug = msg => document.getElementById("debug").textContent = msg;
+
+debug("JS loaded ✅");
+
+let CURRENT_USER = null;
+let IS_ADMIN = false;
+
+// ===== helpers =====
+async function getUser() {
+  const { data } = await supabase.auth.getSession();
+  return data?.session?.user;
+}
+
+async function checkAdmin(userId) {
+  const { data } = await supabase
+    .from("user_roles")
+    .select("is_admin")
+    .eq("user_id", userId)
+    .single();
+  return !!data?.is_admin;
+}
+
+// Monday-start week helpers
+function startOfWeek(d) {
+  const date = new Date(d);
+  const day = (date.getDay() + 6) % 7; // Mon=0 ... Sun=6
+  date.setHours(0,0,0,0);
+  date.setDate(date.getDate() - day);
+  return date;
+}
+function addDays(d, n) {
+  const x = new Date(d);
+  x.setDate(x.getDate() + n);
+  return x;
+}
+function fmtDay(d) {
+  return d.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
+}
+function fmtTime(d) {
+  return d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+}
+
+// ===== auth UI =====
+loginBtn.onclick = async () => {
+  loginError.textContent = "";
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email: email.value,
+    password: password.value
+  });
+  if (error) return loginError.textContent = error.message;
+  await showPortal(data.user);
+};
+
+logoutBtn.onclick = async () => {
+  await supabase.auth.signOut();
+  location.reload();
+};
+
+async function showPortal(user) {
+  CURRENT_USER = user;
+  IS_ADMIN = await checkAdmin(user.id);
+
+  login.classList.add("hidden");
+  portal.classList.remove("hidden");
+  userEmail.textContent = user.email;
+
+  // hide approvals for non-admins
+  apprBtn.style.display = IS_ADMIN ? "inline-block" : "none";
+
+  await showSchedule();
+}
+
+// ===== Scheduling (list) =====
+async function showSchedule() {
+  content.innerHTML = `
+    <h3>Scheduling</h3>
+
+    ${IS_ADMIN ? `
+    <div class="card">
+      <h4>Post Shift</h4>
+      <div class="row" style="align-items:flex-end;">
+        <div style="flex:1; min-width:180px;">
+          <div style="font-weight:700; margin-bottom:6px;">Title</div>
+          <input id="stitle" placeholder="Title" style="width:100%;" />
+        </div>
+        <div style="flex:1; min-width:180px;">
+          <div style="font-weight:700; margin-bottom:6px;">Start</div>
+          <input id="sstart" type="datetime-local" style="width:100%;" />
+        </div>
+        <div style="flex:1; min-width:180px;">
+          <div style="font-weight:700; margin-bottom:6px;">End</div>
+          <input id="send" type="datetime-local" style="width:100%;" />
+        </div>
+        <div style="flex:1; min-width:180px;">
+          <div style="font-weight:700; margin-bottom:6px;">Where</div>
+          <input id="swhere" placeholder="Where" style="width:100%;" />
+        </div>
+      </div>
+      <button id="postBtn" style="margin-top:12px;">Post</button>
+      <div id="perr" class="error"></div>
+    </div>` : ``}
+
+    <div id="list"></div>
+  `;
+
+  if (IS_ADMIN) {
+    postBtn.onclick = async () => {
+      perr.textContent = "";
+
+      if (!stitle.value.trim() || !sstart.value || !send.value) {
+        perr.textContent = "Enter a title, start, and end time.";
+        return;
+      }
+
+      const { error } = await supabase.from("shifts").insert({
+        title: stitle.value.trim(),
+        start_time: sstart.value,
+        end_time: send.value,
+        shift_where: swhere.value.trim(),
+        created_by: CURRENT_USER.id
+      });
+
+      if (error) {
+        perr.textContent = error.message;
+        return;
+      }
+
+      // clear form
+      stitle.value = "";
+      sstart.value = "";
+      send.value = "";
+      swhere.value = "";
+
+      await loadShifts();
+    };
+  }
+
+  await loadShifts();
+}
+
+async function loadShifts() {
+  const { data, error } = await supabase
+    .from("shifts")
+    .select("*")
+    .is("filled_by", null)
+    .order("start_time", { ascending: true });
+
+  if (error) {
+    content.innerHTML += `<div class="error">${esc(error.message)}</div>`;
+    return;
+  }
+
+  list.innerHTML = (data || []).map(s => `
+    <div class="card">
+      <b>${esc(s.title)}</b><br>
+      ${s.start_time ? new Date(s.start_time).toLocaleString() : ""}${s.end_time ? ` – ${new Date(s.end_time).toLocaleString()}` : ""}<br>
+      ${s.shift_where ? `<span class="pill">${esc(s.shift_where)}</span><br><br>` : `<br>`}
+      <button onclick="claim('${s.id}')">Claim</button>
+    </div>
+  `).join("") || `<div class="pill" style="margin-top:12px; display:inline-block;">No shifts posted yet</div>`;
+}
+
+// ===== Claim (double-claim protected) =====
+window.claim = async (id) => {
+  // Check if a pending claim already exists
+  const { data: existing, error: exErr } = await supabase
+    .from("shift_claims")
+    .select("id")
+    .eq("shift_id", id)
+    .eq("status", "pending")
+    .limit(1);
+
+  if (exErr) {
+    alert("Error checking claims: " + exErr.message);
+    return;
+  }
+
+  if (existing && existing.length > 0) {
+    alert("This shift already has a pending claim.");
+    return;
+  }
+
+  const { error } = await supabase.from("shift_claims").insert({
+    shift_id: id,
+    user_id: CURRENT_USER.id,
+    user_email: CURRENT_USER.email,
+    status: "pending"
+  });
+
+  if (error) {
+    alert(error.message);
+    return;
+  }
+
+  alert("Claim sent for approval.");
+  await loadShifts();
+};
+
+// ===== Calendar (weekly) =====
+async function showCalendarWeek(weekOffset = 0) {
+  const base = startOfWeek(new Date());
+  const weekStart = addDays(base, weekOffset * 7);
+  const weekEnd = addDays(weekStart, 7);
+
+  content.innerHTML = `
+    <div class="row" style="justify-content:space-between; margin-top:10px;">
+      <h3 style="margin:0;">Weekly Calendar</h3>
+      <div class="row">
+        <button class="secondary" id="prevWeekBtn">◀ Prev</button>
+        <button class="secondary" id="thisWeekBtn">This Week</button>
+        <button class="secondary" id="nextWeekBtn">Next ▶</button>
+      </div>
+    </div>
+
+    <div class="pill" style="margin-top:10px; display:inline-block;">
+      ${fmtDay(weekStart)} – ${fmtDay(addDays(weekStart, 6))}
+    </div>
+
+    <div id="calGrid" style="
+      margin-top:12px;
+      display:grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap:10px;
+    "></div>
+
+    <div id="calErr" class="error"></div>
+  `;
+
+  prevWeekBtn.onclick = () => showCalendarWeek(weekOffset - 1);
+  nextWeekBtn.onclick = () => showCalendarWeek(weekOffset + 1);
+  thisWeekBtn.onclick = () => showCalendarWeek(0);
+
+  const calGrid = document.getElementById("calGrid");
+  const calErr = document.getElementById("calErr");
+
+  const { data, error } = await supabase
+    .from("shifts")
+    .select("*")
+    .gte("start_time", weekStart.toISOString())
+    .lt("start_time", weekEnd.toISOString())
+    .order("start_time", { ascending: true });
+
+  if (error) {
+    calErr.textContent = error.message;
+    return;
+  }
+
+  const days = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
+
+  days.forEach((dayDate, i) => {
+    const col = document.createElement("div");
+    col.className = "card";
+    col.style.boxShadow = "none";
+    col.style.border = "1px solid #ddd";
+    col.style.padding = "14px";
+
+    const dayStart = new Date(dayDate); dayStart.setHours(0,0,0,0);
+    const dayEnd = new Date(dayDate); dayEnd.setHours(23,59,59,999);
+
+    const dayShifts = (data || []).filter(s => {
+      const st = new Date(s.start_time);
+      return st >= dayStart && st <= dayEnd;
+    });
+
+    col.innerHTML = `
+      <div style="font-weight:900; margin-bottom:8px;">${fmtDay(dayDate)}</div>
+      <div id="day_${i}" style="display:grid; gap:8px;"></div>
+      ${dayShifts.length === 0 ? `<div class="pill" style="margin-top:8px; display:inline-block;">No shifts</div>` : ``}
+    `;
+
+    calGrid.appendChild(col);
+
+    const dayWrap = col.querySelector(`#day_${i}`);
+    dayShifts.forEach(s => {
+      const st = new Date(s.start_time);
+      const en = s.end_time ? new Date(s.end_time) : null;
+
+      const filled = !!s.filled_by;
+      const block = document.createElement("div");
+      block.style.border = "1px solid #ddd";
+      block.style.borderRadius = "10px";
+      block.style.padding = "10px";
+      block.style.background = "#fff";
+
+      block.innerHTML = `
+        <div style="font-weight:800;">${esc(s.title)}</div>
+        <div style="color:#444; margin-top:4px;">
+          ${fmtTime(st)}${en ? ` – ${fmtTime(en)}` : ``}
+        </div>
+        ${s.shift_where ? `<div style="color:#666; margin-top:2px;">${esc(s.shift_where)}</div>` : ``}
+        <div style="margin-top:8px;">
+          ${filled ? `<span class="pill">Filled</span>` : `<button onclick="claim('${s.id}')">Claim</button>`}
+        </div>
+      `;
+
+      dayWrap.appendChild(block);
+    });
+  });
+
+  if (window.innerWidth < 850) {
+    calGrid.style.gridTemplateColumns = "1fr";
+  }
+}
+
+// ===== My Shifts =====
+myBtn.onclick = async () => {
+  const { data, error } = await supabase
+    .from("shifts")
+    .select("*")
+    .eq("filled_by", CURRENT_USER.id)
+    .order("start_time", { ascending: true });
+
+  if (error) {
+    content.innerHTML = `<div class="error">${esc(error.message)}</div>`;
+    return;
+  }
+
+  content.innerHTML = `
+    <h3>My Shifts</h3>
+    ${data.length
+      ? data.map(s => `
+        <div class="card">
+          <b>${esc(s.title)}</b><br>
+          ${s.start_time ? new Date(s.start_time).toLocaleString() : ""}${s.end_time ? ` – ${new Date(s.end_time).toLocaleString()}` : ""}<br>
+          ${s.shift_where ? `<span class="pill">${esc(s.shift_where)}</span>` : ``}
+          <div class="pill" style="margin-top:10px; display:inline-block;">Assigned ✅</div>
+        </div>
+      `).join("")
+      : `<div class="pill" style="margin-top:12px; display:inline-block;">No assigned shifts yet</div>`
+    }
+  `;
+};
+
+// ===== Approvals =====
+apprBtn.onclick = async () => {
+  const { data, error } = await supabase
+    .from("shift_claims")
+    .select("id,user_id,user_email,shift_id,status,shifts(title,start_time,end_time,shift_where)")
+    .eq("status", "pending")
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    content.innerHTML = `<div class="error">${esc(error.message)}</div>`;
+    return;
+  }
+
+  content.innerHTML = `
+    <h3>Approvals</h3>
+    ${data.length ? data.map(c => `
+      <div class="card">
+        <b>${esc(c.shifts?.title || "Shift")}</b><br>
+        ${c.shifts?.start_time ? new Date(c.shifts.start_time).toLocaleString() : ""}${c.shifts?.end_time ? ` – ${new Date(c.shifts.end_time).toLocaleString()}` : ""}<br>
+        ${c.shifts?.shift_where ? `<span class="pill">${esc(c.shifts.shift_where)}</span><br><br>` : `<br>`}
+        Claimed by: <b>${esc(c.user_email || c.user_id)}</b><br><br>
+        <button onclick="approve('${c.id}','${c.shift_id}','${c.user_id}')">Approve</button>
+        <button class="secondary" onclick="deny('${c.id}')">Deny</button>
+      </div>
+    `).join("") : `<div class="pill" style="margin-top:12px; display:inline-block;">No pending claims</div>`}
+  `;
+};
+
+window.approve = async (cid, sid, uid) => {
+  const { error: e1 } = await supabase.from("shift_claims").update({ status: "approved" }).eq("id", cid);
+  if (e1) return alert(e1.message);
+
+  const { error: e2 } = await supabase.from("shifts").update({ filled_by: uid }).eq("id", sid);
+  if (e2) return alert(e2.message);
+
+  apprBtn.onclick();
+};
+
+window.deny = async (cid) => {
+  const { error } = await supabase.from("shift_claims").update({ status: "denied" }).eq("id", cid);
+  if (error) return alert(error.message);
+  apprBtn.onclick();
+};
+
+// ===== Announcements =====
+annBtn.onclick = () => {
+  content.innerHTML = `
+    <h3>Announcements</h3>
+    <div class="pill" style="margin-top:12px; display:inline-block;">No announcements yet</div>
+  `;
+};
+
+// ===== Nav wiring =====
+schedBtn.onclick = showSchedule;
+calBtn.onclick = () => showCalendarWeek(0);
+
+// ===== Auto login =====
+const user = await getUser();
+if (user) await showPortal(user);
+</script>
+
+</body>
+</html>
