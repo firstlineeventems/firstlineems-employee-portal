@@ -5,25 +5,107 @@
 <title>First Line EMS Employee Portal</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <style>
-body { font-family: system-ui; background:#f5f6f8; margin:0; }
-.container { max-width:900px; margin:40px auto; padding:20px; }
-.card { background:#fff; border-radius:14px; padding:24px; box-shadow:0 10px 25px rgba(0,0,0,.08); }
+:root{
+  --bg:#f6f7fb;
+  --card:#ffffff;
+  --text:#111827;
+  --muted:#6b7280;
+  --line:#e5e7eb;
+  --shadow:0 10px 25px rgba(0,0,0,.07);
+  --brand:#0f172a;
+  --brand2:#111827;
+  --accent:#2563eb;
+  --accent2:#1d4ed8;
+  --danger:#b00020;
+  --ok:#0f766e;
+}
+
+*{box-sizing:border-box}
+body { font-family: system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif; background:var(--bg); margin:0; color:var(--text); }
+.container { max-width:980px; margin:40px auto; padding:20px; }
+.card { background:var(--card); border-radius:16px; padding:22px; box-shadow:var(--shadow); border:1px solid var(--line); }
 .hidden { display:none; }
 .row { display:flex; gap:12px; flex-wrap:wrap; align-items:center; }
-button { padding:12px 16px; border-radius:10px; border:none; background:#111; color:#fff; font-weight:700; cursor:pointer; }
-button.secondary { background:#eaeaea; color:#111; }
-button.danger { background:#b00020; }
-button:disabled { opacity:.55; cursor:not-allowed; }
-input, textarea { padding:10px; border-radius:8px; border:1px solid #ccc; }
-textarea { width:100%; min-height:90px; resize:vertical; }
-.error { color:#b00020; font-weight:600; margin-top:8px; }
-.pill { background:#eee; padding:6px 12px; border-radius:999px; font-size:13px; font-weight:700; display:inline-block; }
-.debug { font-weight:800; margin-top:10px; }
-hr { border:none; border-top:1px solid #eee; margin:16px 0; }
-.small { color:#666; font-size:13px; }
-.noteBox { margin-top:10px; padding:12px; border:1px solid #ddd; border-radius:12px; background:#fafafa; }
-.noteTitle { font-weight:900; margin-bottom:6px; }
-label { font-weight:800; display:block; margin:10px 0 6px; }
+button {
+  padding:12px 16px; border-radius:12px; border:1px solid transparent;
+  background:linear-gradient(180deg,var(--brand),var(--brand2));
+  color:#fff; font-weight:800; cursor:pointer;
+  box-shadow:0 10px 18px rgba(17,24,39,.14);
+}
+button.secondary { background:#fff; color:var(--text); border-color:var(--line); box-shadow:none; font-weight:800; }
+button.danger { background:linear-gradient(180deg,#b00020,#8a0018); }
+button:disabled { opacity:.55; cursor:not-allowed; box-shadow:none; }
+
+input, textarea {
+  padding:11px 12px; border-radius:12px; border:1px solid var(--line);
+  background:#fff; color:var(--text); outline:none;
+}
+input:focus, textarea:focus{ border-color:rgba(37,99,235,.45); box-shadow:0 0 0 4px rgba(37,99,235,.12); }
+textarea { width:100%; min-height:92px; resize:vertical; }
+
+.error { color:var(--danger); font-weight:700; margin-top:8px; }
+.pill {
+  background:#f3f4f6; padding:6px 12px; border-radius:999px; font-size:13px; font-weight:900;
+  border:1px solid var(--line); display:inline-flex; align-items:center; gap:8px;
+}
+.pill.ok { background:rgba(15,118,110,.08); border-color:rgba(15,118,110,.25); color:var(--ok); }
+.pill.blue { background:rgba(37,99,235,.08); border-color:rgba(37,99,235,.25); color:var(--accent2); }
+
+.debug { font-weight:900; margin-top:10px; color:var(--muted); }
+hr { border:none; border-top:1px solid var(--line); margin:16px 0; }
+.small { color:var(--muted); font-size:13px; }
+.noteBox { margin-top:10px; padding:12px; border:1px solid var(--line); border-radius:14px; background:#fafafa; }
+.noteTitle { font-weight:1000; margin-bottom:6px; }
+label { font-weight:900; display:block; margin:10px 0 6px; color:#111827; }
+h2,h3,h4{margin:0 0 10px 0}
+h3{margin-top:6px}
+a{color:var(--accent); text-decoration:none}
+a:hover{text-decoration:underline}
+
+.topbar{
+  display:flex; justify-content:space-between; align-items:center; gap:14px;
+  margin-bottom:14px;
+}
+.brand{
+  display:flex; gap:12px; align-items:center;
+}
+.logo{
+  width:40px; height:40px; border-radius:14px;
+  background:radial-gradient(circle at 30% 30%, #60a5fa, #1d4ed8);
+  box-shadow:0 10px 20px rgba(37,99,235,.20);
+}
+.brandTitle{display:flex; flex-direction:column; gap:2px}
+.brandTitle .name{font-weight:1000; letter-spacing:.2px}
+.brandTitle .tag{font-size:13px; color:var(--muted); font-weight:700}
+
+.nav{
+  display:flex; gap:10px; flex-wrap:wrap; margin-top:10px;
+}
+.nav button{
+  background:#fff;
+  border:1px solid var(--line);
+  color:var(--text);
+  box-shadow:none;
+  font-weight:900;
+}
+.nav button.active{
+  border-color:rgba(37,99,235,.35);
+  box-shadow:0 0 0 4px rgba(37,99,235,.10);
+}
+.sectionCard{
+  margin-top:14px;
+  border-radius:16px;
+}
+.grid5{
+  display:grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap:12px;
+  align-items:end;
+}
+@media (max-width: 900px){
+  .grid5{grid-template-columns: 1fr 1fr}
+  .container{margin:20px auto}
+}
 </style>
 </head>
 <body>
@@ -32,22 +114,54 @@ label { font-weight:800; display:block; margin:10px 0 6px; }
 
 <!-- LOGIN -->
 <div id="login" class="card">
-  <h2>Employee Login</h2>
-  <input id="email" placeholder="Email" />
-  <input id="password" type="password" placeholder="Password" />
-  <button id="loginBtn">Login</button>
-  <div id="debug" class="debug"></div>
+  <div class="topbar">
+    <div class="brand">
+      <div class="logo"></div>
+      <div class="brandTitle">
+        <div class="name">First Line EMS</div>
+        <div class="tag">Employee Portal</div>
+      </div>
+    </div>
+    <span class="pill blue">Secure Login</span>
+  </div>
+
+  <h2>Sign in</h2>
+  <div class="small">Use your employee account email + password.</div>
+
+  <div style="height:10px"></div>
+
+  <label for="email">Email</label>
+  <input id="email" placeholder="Email" autocomplete="username" style="width:100%;" />
+
+  <label for="password">Password</label>
+  <input id="password" type="password" placeholder="Password" autocomplete="current-password" style="width:100%;" />
+
+  <div style="height:12px"></div>
+  <div class="row">
+    <button id="loginBtn">Login</button>
+    <span id="debug" class="debug"></span>
+  </div>
   <div id="loginError" class="error"></div>
 </div>
 
 <!-- PORTAL -->
 <div id="portal" class="card hidden">
-  <div class="row" style="justify-content:space-between">
-    <span id="userEmail" class="pill"></span>
-    <button id="logoutBtn" class="secondary">Logout</button>
+  <div class="topbar">
+    <div class="brand">
+      <div class="logo"></div>
+      <div class="brandTitle">
+        <div class="name">First Line EMS</div>
+        <div class="tag">Employee Portal</div>
+      </div>
+    </div>
+
+    <div class="row">
+      <span id="userEmail" class="pill"></span>
+      <button id="logoutBtn" class="secondary">Logout</button>
+    </div>
   </div>
 
-  <div class="row" style="margin-top:14px">
+  <div class="nav">
     <button id="schedBtn">Scheduling</button>
     <button id="calBtn">Calendar</button>
     <button id="myBtn">My Requests / Shifts</button>
@@ -74,6 +188,12 @@ debug("JS loaded ✅");
 
 let CURRENT_USER = null;
 let IS_ADMIN = false;
+
+// ===== nav active state =====
+function setActiveNav(btn){
+  [schedBtn, calBtn, myBtn, annBtn, apprBtn].forEach(b => b.classList.remove("active"));
+  if (btn) btn.classList.add("active");
+}
 
 // ===== helpers =====
 async function getUser() {
@@ -206,53 +326,78 @@ function renderNotesBox(notes) {
   return `
     <div class="noteBox">
       <div class="noteTitle">Notes</div>
-      <div>${esc(n).replace(/\n/g,"<br>")}</div>
+      <div>${esc(n).replace(/\\n/g,"<br>")}</div>
+    </div>
+  `;
+}
+
+// ✅ NEW: map link renderer
+function renderMapLink(url) {
+  const u = (url || "").trim();
+  if (!u) return "";
+  return `
+    <div style="margin-top:10px;">
+      <a href="${esc(u)}" target="_blank" rel="noopener">
+        🗺️ View Event Map
+      </a>
     </div>
   `;
 }
 
 // ===== Scheduling (list) =====
 async function showSchedule() {
+  setActiveNav(schedBtn);
+
   content.innerHTML = `
-    <h3>Scheduling</h3>
+    <div class="row" style="justify-content:space-between; align-items:flex-end;">
+      <div>
+        <h3>Scheduling</h3>
+        <div class="small">Claim shifts for approval. Approved shifts appear in “My Requests / Shifts”.</div>
+      </div>
+      <span class="pill blue">${IS_ADMIN ? "Admin" : "Employee"}</span>
+    </div>
 
     ${IS_ADMIN ? `
-    <div class="card">
+    <div class="card sectionCard">
       <h4>Post Shift</h4>
-      <div class="row" style="align-items:flex-end;">
-        <div style="flex:1; min-width:180px;">
-          <div style="font-weight:700; margin-bottom:6px;">Title</div>
+
+      <div class="grid5">
+        <div>
+          <label>Title</label>
           <input id="stitle" placeholder="Title" style="width:100%;" />
         </div>
-        <div style="flex:1; min-width:180px;">
-          <div style="font-weight:700; margin-bottom:6px;">Start</div>
+        <div>
+          <label>Start</label>
           <input id="sstart" type="datetime-local" style="width:100%;" />
         </div>
-        <div style="flex:1; min-width:180px;">
-          <div style="font-weight:700; margin-bottom:6px;">End</div>
+        <div>
+          <label>End</label>
           <input id="send" type="datetime-local" style="width:100%;" />
         </div>
-        <div style="flex:1; min-width:180px;">
-          <div style="font-weight:700; margin-bottom:6px;">Where</div>
+        <div>
+          <label>Where</label>
           <input id="swhere" placeholder="Where" style="width:100%;" />
         </div>
-        <div style="width:130px;">
-          <div style="font-weight:700; margin-bottom:6px;">Crew Size</div>
+        <div>
+          <label>Crew Size</label>
           <input id="screw" type="number" min="1" value="1" style="width:100%;" />
         </div>
       </div>
 
-      <div style="margin-top:10px;">
-        <div style="font-weight:700; margin-bottom:6px;">Shift Notes / Instructions</div>
-        <textarea id="snotes" placeholder="Example: Meet at main gate 30 mins early. Uniform: Class B polo. Call supervisor if late."></textarea>
-      </div>
+      <label>Google My Map Link</label>
+      <input id="smap" placeholder="https://www.google.com/maps/d/..." style="width:100%;" />
 
-      <button id="postBtn" style="margin-top:12px;">Post</button>
+      <label>Shift Notes / Instructions</label>
+      <textarea id="snotes" placeholder="Example: Meet at main gate 30 mins early. Uniform: Class B polo. Call supervisor if late."></textarea>
+
+      <div class="row" style="margin-top:12px;">
+        <button id="postBtn">Post</button>
+        <div class="small">Crew size = how many employees can be approved for this shift.</div>
+      </div>
       <div id="perr" class="error"></div>
-      <div class="small" style="margin-top:6px;">Crew size = how many employees can be approved for this shift.</div>
     </div>` : ``}
 
-    <div id="list"></div>
+    <div id="list" style="margin-top:14px; display:grid; gap:12px;"></div>
   `;
 
   if (IS_ADMIN) {
@@ -265,6 +410,7 @@ async function showSchedule() {
       const endVal = send.value;
       const crew = Math.max(1, parseInt(screw.value || "1", 10));
       const notes = (snotes.value || "").trim();
+      const mapUrl = (smap.value || "").trim(); // ✅ NEW
 
       if (!title || !startVal || !endVal) {
         perr.textContent = "Enter a title, start, and end time.";
@@ -278,6 +424,7 @@ async function showSchedule() {
         shift_where: where,
         crew_size: crew,
         notes,
+        google_map_url: mapUrl || null, // ✅ NEW
         created_by: CURRENT_USER.id
       });
 
@@ -292,6 +439,7 @@ async function showSchedule() {
       swhere.value = "";
       screw.value = "1";
       snotes.value = "";
+      smap.value = "";
 
       await loadShifts();
     };
@@ -326,12 +474,13 @@ async function loadShifts() {
     let claimBtnHtml = "";
 
     if (full) claimBtnHtml = `<span class="pill">Filled</span>`;
-    else if (mine === "pending") claimBtnHtml = `<span class="pill">Pending approval</span>`;
-    else if (mine === "approved") claimBtnHtml = `<span class="pill">You’re approved</span>`;
+    else if (mine === "pending") claimBtnHtml = `<span class="pill blue">Pending approval</span>`;
+    else if (mine === "approved") claimBtnHtml = `<span class="pill ok">You’re approved</span>`;
     else if (mine === "removal_requested") claimBtnHtml = `<span class="pill">Removal requested</span>`;
     else claimBtnHtml = `<button onclick="claimShift('${s.id}')">Claim</button>`;
 
     const notesHtml = renderNotesBox(s.notes);
+    const mapHtml = renderMapLink(s.google_map_url); // ✅ NEW
 
     const adminBtns = IS_ADMIN ? `
       <div class="row" style="margin-top:10px;">
@@ -339,21 +488,31 @@ async function loadShifts() {
         <button class="secondary" onclick="manageShift('${s.id}')">Manage</button>
         <button class="danger" onclick="deleteShift('${s.id}')">Delete</button>
       </div>
-      <div class="small">Edit = change time/crew/notes. Manage = remove approved members. Delete = remove shift entirely.</div>
+      <div class="small">Edit = change time/crew/notes/map. Manage = remove approved members. Delete = remove shift entirely.</div>
     ` : ``;
 
     return `
       <div class="card">
-        <b>${esc(s.title)}</b><br>
-        ${fmtDT(s.start_time)}${s.end_time ? ` – ${fmtDT(s.end_time)}` : ""}<br>
-        ${s.shift_where ? `<span class="pill">${esc(s.shift_where)}</span>` : ``}
-        <span class="pill" style="margin-left:8px;">${slotsText(ac, cs)}</span>
+        <div class="row" style="justify-content:space-between; align-items:flex-start;">
+          <div style="min-width:240px;">
+            <div style="font-weight:1000; font-size:16px;">${esc(s.title)}</div>
+            <div class="small" style="margin-top:6px;">
+              🕒 ${fmtDT(s.start_time)}${s.end_time ? ` – ${fmtDT(s.end_time)}` : ""}
+            </div>
+            ${s.shift_where ? `<div style="margin-top:8px;"><span class="pill">${esc(s.shift_where)}</span></div>` : ``}
+            <div style="margin-top:8px;">
+              <span class="pill" style="margin-right:8px;">${slotsText(ac, cs)}</span>
+              ${full ? `<span class="pill">Full</span>` : `<span class="pill ok">Open</span>`}
+            </div>
+          </div>
 
-        ${notesHtml}
-
-        <div style="margin-top:12px;">
-          ${claimBtnHtml}
+          <div style="text-align:right;">
+            ${claimBtnHtml}
+          </div>
         </div>
+
+        ${mapHtml}
+        ${notesHtml}
         ${adminBtns}
       </div>
     `;
@@ -383,15 +542,18 @@ window.editShift = async (shiftId) => {
 
   content.innerHTML = `
     <div class="row" style="justify-content:space-between;">
-      <h3 style="margin:0;">Edit Shift</h3>
+      <div>
+        <h3 style="margin:0;">Edit Shift</h3>
+        <div class="small">Update details. Crew size can’t go below approved count.</div>
+      </div>
       <div class="row">
         <button class="secondary" onclick="showSchedule()">Back</button>
         <button class="danger" onclick="deleteShift('${shiftId}')">Delete</button>
       </div>
     </div>
 
-    <div class="card" style="margin-top:12px;">
-      <div class="pill">Approved: ${approvedCount}</div>
+    <div class="card sectionCard">
+      <div class="pill blue">Approved: ${approvedCount}</div>
 
       <label>Title</label>
       <input id="etitle" style="width:100%;" />
@@ -414,6 +576,9 @@ window.editShift = async (shiftId) => {
       <input id="ecrew" type="number" min="1" style="width:160px;" />
       <div class="small">Crew size cannot be less than approved count (${approvedCount}).</div>
 
+      <label>Google My Map Link</label>
+      <input id="emap" placeholder="https://www.google.com/maps/d/..." style="width:100%;" />
+
       <label>Notes / Instructions</label>
       <textarea id="enotes"></textarea>
 
@@ -429,6 +594,7 @@ window.editShift = async (shiftId) => {
   document.getElementById("ewhere").value = shift.shift_where || "";
   document.getElementById("ecrew").value = String(Math.max(1, Number(shift.crew_size || 1)));
   document.getElementById("enotes").value = shift.notes || "";
+  document.getElementById("emap").value = shift.google_map_url || ""; // ✅ NEW
 
   document.getElementById("saveShiftBtn").onclick = async () => {
     const eerr = document.getElementById("eerr");
@@ -440,6 +606,7 @@ window.editShift = async (shiftId) => {
     const where = document.getElementById("ewhere").value.trim();
     const notes = document.getElementById("enotes").value.trim();
     const crew = Math.max(1, parseInt(document.getElementById("ecrew").value || "1", 10));
+    const mapUrl = (document.getElementById("emap").value || "").trim(); // ✅ NEW
 
     if (!title || !startVal || !endVal) {
       eerr.textContent = "Title, start, and end are required.";
@@ -459,7 +626,8 @@ window.editShift = async (shiftId) => {
         end_time: endVal,
         shift_where: where,
         crew_size: crew,
-        notes
+        notes,
+        google_map_url: mapUrl || null // ✅ NEW
       })
       .eq("id", shiftId)
       .select("id");
@@ -549,9 +717,11 @@ window.requestRemoval = async (claimId) => {
 
 // ===== My Requests / My Shifts (combined) =====
 async function showMyRequests() {
+  setActiveNav(myBtn);
+
   const { data, error } = await supabase
     .from("shift_claims")
-    .select("id,status,created_at,shift_id,shifts(title,start_time,end_time,shift_where,crew_size,notes)")
+    .select("id,status,created_at,shift_id,shifts(title,start_time,end_time,shift_where,crew_size,notes,google_map_url)")
     .eq("user_id", CURRENT_USER.id)
     .in("status", ["pending","approved","removal_requested"])
     .order("created_at", { ascending: false });
@@ -568,54 +738,44 @@ async function showMyRequests() {
 
   const renderNotes = (n) => renderNotesBox(n);
 
+  const renderShiftCard = (r, badgeHtml, actionHtml="") => `
+    <div class="card">
+      <div style="font-weight:1000; font-size:16px;">${esc(r.shifts?.title || "Shift")}</div>
+      <div class="small" style="margin-top:6px;">🕒 ${fmtDT(r.shifts?.start_time)}${r.shifts?.end_time ? ` – ${fmtDT(r.shifts.end_time)}` : ""}</div>
+      ${r.shifts?.shift_where ? `<div style="margin-top:8px;"><span class="pill">${esc(r.shifts.shift_where)}</span></div>` : ``}
+      <div style="margin-top:10px;">${badgeHtml}${actionHtml}</div>
+      ${renderMapLink(r.shifts?.google_map_url)}
+      ${renderNotes(r.shifts?.notes)}
+    </div>
+  `;
+
   content.innerHTML = `
     <h3>My Requests / Shifts</h3>
 
     <h4>Pending Requests</h4>
-    ${pending.length ? pending.map(r => `
-      <div class="card">
-        <b>${esc(r.shifts?.title || "Shift")}</b><br>
-        ${fmtDT(r.shifts?.start_time)}${r.shifts?.end_time ? ` – ${fmtDT(r.shifts.end_time)}` : ""}<br>
-        ${r.shifts?.shift_where ? `<span class="pill">${esc(r.shifts.shift_where)}</span>` : ``}
-        ${renderNotes(r.shifts?.notes)}
-        <div style="margin-top:10px;">
-          <span class="pill">Pending</span>
-          <button class="secondary" style="margin-left:10px;" onclick="cancelMyPending('${r.id}')">Cancel Request</button>
-        </div>
-      </div>
-    `).join("") : `<div class="pill">No pending requests</div>`}
+    ${pending.length ? pending.map(r => renderShiftCard(
+      r,
+      `<span class="pill blue">Pending</span>`,
+      `<button class="secondary" style="margin-left:10px;" onclick="cancelMyPending('${r.id}')">Cancel Request</button>`
+    )).join("") : `<div class="pill">No pending requests</div>`}
 
     <hr>
 
     <h4>Approved Shifts</h4>
-    ${approved.length ? approved.map(r => `
-      <div class="card">
-        <b>${esc(r.shifts?.title || "Shift")}</b><br>
-        ${fmtDT(r.shifts?.start_time)}${r.shifts?.end_time ? ` – ${fmtDT(r.shifts.end_time)}` : ""}<br>
-        ${r.shifts?.shift_where ? `<span class="pill">${esc(r.shifts.shift_where)}</span>` : ``}
-        ${renderNotes(r.shifts?.notes)}
-        <div style="margin-top:10px;">
-          <span class="pill">Approved ✅</span>
-          <button class="secondary" style="margin-left:10px;" onclick="requestRemoval('${r.id}')">Request Removal</button>
-        </div>
-        <div class="small" style="margin-top:6px;">Removal requires admin action.</div>
-      </div>
-    `).join("") : `<div class="pill">No approved shifts yet</div>`}
+    ${approved.length ? approved.map(r => renderShiftCard(
+      r,
+      `<span class="pill ok">Approved ✅</span>`,
+      `<button class="secondary" style="margin-left:10px;" onclick="requestRemoval('${r.id}')">Request Removal</button>
+       <div class="small" style="margin-top:8px;">Removal requires admin action.</div>`
+    )).join("") : `<div class="pill">No approved shifts yet</div>`}
 
     <hr>
 
     <h4>Removal Requests</h4>
-    ${removal.length ? removal.map(r => `
-      <div class="card">
-        <b>${esc(r.shifts?.title || "Shift")}</b><br>
-        ${fmtDT(r.shifts?.start_time)}${r.shifts?.end_time ? ` – ${fmtDT(r.shifts.end_time)}` : ""}<br>
-        ${r.shifts?.shift_where ? `<span class="pill">${esc(r.shifts.shift_where)}</span>` : ``}
-        ${renderNotes(r.shifts?.notes)}
-        <div style="margin-top:10px;">
-          <span class="pill">Removal requested</span>
-        </div>
-      </div>
-    `).join("") : `<div class="pill">No removal requests</div>`}
+    ${removal.length ? removal.map(r => renderShiftCard(
+      r,
+      `<span class="pill">Removal requested</span>`
+    )).join("") : `<div class="pill">No removal requests</div>`}
   `;
 }
 
@@ -624,10 +784,11 @@ myBtn.onclick = showMyRequests;
 // ===== Approvals (admin) =====
 apprBtn.onclick = async () => {
   if (!IS_ADMIN) return alert("Admins only.");
+  setActiveNav(apprBtn);
 
   const { data: pending, error: pErr } = await supabase
     .from("shift_claims")
-    .select("id,user_id,user_email,shift_id,status,created_at,shifts(id,title,start_time,end_time,shift_where,crew_size,notes)")
+    .select("id,user_id,user_email,shift_id,status,created_at,shifts(id,title,start_time,end_time,shift_where,crew_size,notes,google_map_url)")
     .eq("status", "pending")
     .order("created_at", { ascending: false });
 
@@ -635,7 +796,7 @@ apprBtn.onclick = async () => {
 
   const { data: removal, error: rErr } = await supabase
     .from("shift_claims")
-    .select("id,user_id,user_email,shift_id,status,created_at,shifts(id,title,start_time,end_time,shift_where,crew_size,notes)")
+    .select("id,user_id,user_email,shift_id,status,created_at,shifts(id,title,start_time,end_time,shift_where,crew_size,notes,google_map_url)")
     .eq("status", "removal_requested")
     .order("created_at", { ascending: false });
 
@@ -656,10 +817,14 @@ apprBtn.onclick = async () => {
 
       return `
         <div class="card">
-          <b>${esc(s.title || "Shift")}</b><br>
-          ${fmtDT(s.start_time)}${s.end_time ? ` – ${fmtDT(s.end_time)}` : ""}<br>
-          ${s.shift_where ? `<span class="pill">${esc(s.shift_where)}</span>` : ``}
-          <span class="pill" style="margin-left:8px;">${slotsText(ac, cs)}</span>
+          <div style="font-weight:1000; font-size:16px;">${esc(s.title || "Shift")}</div>
+          <div class="small" style="margin-top:6px;">🕒 ${fmtDT(s.start_time)}${s.end_time ? ` – ${fmtDT(s.end_time)}` : ""}</div>
+          ${s.shift_where ? `<div style="margin-top:8px;"><span class="pill">${esc(s.shift_where)}</span></div>` : ``}
+          <div style="margin-top:10px;">
+            <span class="pill">${slotsText(ac, cs)}</span>
+            ${full ? `<span class="pill" style="margin-left:8px;">Full</span>` : `<span class="pill ok" style="margin-left:8px;">Open</span>`}
+          </div>
+          ${renderMapLink(s.google_map_url)}
           ${renderNotesBox(s.notes)}
           <div style="margin-top:10px;">Claimed by: <b>${esc(c.user_email || c.user_id)}</b></div>
           <div class="row" style="margin-top:10px;">
@@ -682,10 +847,13 @@ apprBtn.onclick = async () => {
 
       return `
         <div class="card">
-          <b>${esc(s.title || "Shift")}</b><br>
-          ${fmtDT(s.start_time)}${s.end_time ? ` – ${fmtDT(s.end_time)}` : ""}<br>
-          ${s.shift_where ? `<span class="pill">${esc(s.shift_where)}</span>` : ``}
-          <span class="pill" style="margin-left:8px;">${slotsText(ac, cs)}</span>
+          <div style="font-weight:1000; font-size:16px;">${esc(s.title || "Shift")}</div>
+          <div class="small" style="margin-top:6px;">🕒 ${fmtDT(s.start_time)}${s.end_time ? ` – ${fmtDT(s.end_time)}` : ""}</div>
+          ${s.shift_where ? `<div style="margin-top:8px;"><span class="pill">${esc(s.shift_where)}</span></div>` : ``}
+          <div style="margin-top:10px;">
+            <span class="pill">${slotsText(ac, cs)}</span>
+          </div>
+          ${renderMapLink(s.google_map_url)}
           ${renderNotesBox(s.notes)}
           <div style="margin-top:10px;">Employee: <b>${esc(c.user_email || c.user_id)}</b></div>
           <div class="row" style="margin-top:10px;">
@@ -767,7 +935,10 @@ window.manageShift = async (shiftId) => {
 
   content.innerHTML = `
     <div class="row" style="justify-content:space-between;">
-      <h3 style="margin:0;">Manage Shift</h3>
+      <div>
+        <h3 style="margin:0;">Manage Shift</h3>
+        <div class="small">Remove approved members to free slots.</div>
+      </div>
       <div class="row">
         <button class="secondary" onclick="showSchedule()">Back</button>
         <button class="secondary" onclick="editShift('${shiftId}')">Edit</button>
@@ -775,19 +946,21 @@ window.manageShift = async (shiftId) => {
       </div>
     </div>
 
-    <div class="card" style="margin-top:12px;">
-      <b>${esc(shift.title)}</b><br>
-      ${fmtDT(shift.start_time)}${shift.end_time ? ` – ${fmtDT(shift.end_time)}` : ""}<br>
-      ${shift.shift_where ? `<span class="pill">${esc(shift.shift_where)}</span>` : ``}
-      <span class="pill" style="margin-left:8px;">${slotsText(ac, cs)}</span>
+    <div class="card sectionCard">
+      <div style="font-weight:1000; font-size:16px;">${esc(shift.title)}</div>
+      <div class="small" style="margin-top:6px;">🕒 ${fmtDT(shift.start_time)}${shift.end_time ? ` – ${fmtDT(shift.end_time)}` : ""}</div>
+      ${shift.shift_where ? `<div style="margin-top:8px;"><span class="pill">${esc(shift.shift_where)}</span></div>` : ``}
+      <div style="margin-top:10px;">
+        <span class="pill">${slotsText(ac, cs)}</span>
+      </div>
+      ${renderMapLink(shift.google_map_url)}
       ${renderNotesBox(shift.notes)}
-      <div class="small" style="margin-top:8px;">Remove an employee to free a slot.</div>
     </div>
 
-    <h4>Approved Members</h4>
+    <h4 style="margin-top:12px;">Approved Members</h4>
     ${(approved || []).length ? (approved || []).map(m => `
-      <div class="card">
-        <div><b>${esc(m.user_email || m.user_id)}</b></div>
+      <div class="card sectionCard" style="box-shadow:none;">
+        <div style="font-weight:900;">${esc(m.user_email || m.user_id)}</div>
         <div class="row" style="margin-top:10px;">
           <button class="danger" onclick="adminRemoveApproved('${m.id}')">Remove</button>
         </div>
@@ -835,22 +1008,23 @@ window.deleteShift = async (shiftId) => {
 
 // ===== Calendar (weekly) =====
 async function showCalendarWeek(weekOffset = 0) {
+  setActiveNav(calBtn);
+
   const base = startOfWeek(new Date());
   const weekStart = addDays(base, weekOffset * 7);
   const weekEnd = addDays(weekStart, 7);
 
   content.innerHTML = `
     <div class="row" style="justify-content:space-between; margin-top:10px;">
-      <h3 style="margin:0;">Weekly Calendar</h3>
+      <div>
+        <h3 style="margin:0;">Weekly Calendar</h3>
+        <div class="small">${fmtDay(weekStart)} – ${fmtDay(addDays(weekStart, 6))}</div>
+      </div>
       <div class="row">
         <button class="secondary" id="prevWeekBtn">◀ Prev</button>
         <button class="secondary" id="thisWeekBtn">This Week</button>
         <button class="secondary" id="nextWeekBtn">Next ▶</button>
       </div>
-    </div>
-
-    <div class="pill" style="margin-top:10px;">
-      ${fmtDay(weekStart)} – ${fmtDay(addDays(weekStart, 6))}
     </div>
 
     <div id="calGrid" style="
@@ -893,7 +1067,7 @@ async function showCalendarWeek(weekOffset = 0) {
     const col = document.createElement("div");
     col.className = "card";
     col.style.boxShadow = "none";
-    col.style.border = "1px solid #ddd";
+    col.style.border = "1px solid var(--line)";
     col.style.padding = "14px";
 
     const dayStart = new Date(dayDate); dayStart.setHours(0,0,0,0);
@@ -905,7 +1079,7 @@ async function showCalendarWeek(weekOffset = 0) {
     });
 
     col.innerHTML = `
-      <div style="font-weight:900; margin-bottom:8px;">${fmtDay(dayDate)}</div>
+      <div style="font-weight:1000; margin-bottom:8px;">${fmtDay(dayDate)}</div>
       <div id="day_${i}" style="display:grid; gap:8px;"></div>
       ${dayShifts.length === 0 ? `<div class="pill" style="margin-top:8px;">No shifts</div>` : ``}
     `;
@@ -924,20 +1098,20 @@ async function showCalendarWeek(weekOffset = 0) {
       const mine = myStatus[s.id];
       let actionHtml = "";
       if (full) actionHtml = `<span class="pill">Filled</span>`;
-      else if (mine === "pending") actionHtml = `<span class="pill">Pending</span>`;
-      else if (mine === "approved") actionHtml = `<span class="pill">Approved</span>`;
+      else if (mine === "pending") actionHtml = `<span class="pill blue">Pending</span>`;
+      else if (mine === "approved") actionHtml = `<span class="pill ok">Approved</span>`;
       else if (mine === "removal_requested") actionHtml = `<span class="pill">Removal req.</span>`;
       else actionHtml = `<button onclick="claimShift('${s.id}')">Claim</button>`;
 
       const block = document.createElement("div");
-      block.style.border = "1px solid #ddd";
-      block.style.borderRadius = "10px";
+      block.style.border = "1px solid var(--line)";
+      block.style.borderRadius = "12px";
       block.style.padding = "10px";
       block.style.background = "#fff";
 
       block.innerHTML = `
-        <div style="font-weight:800;">${esc(s.title)}</div>
-        <div style="color:#444; margin-top:4px;">
+        <div style="font-weight:900;">${esc(s.title)}</div>
+        <div class="small" style="margin-top:4px;">
           ${fmtTime(st)}${en ? ` – ${fmtTime(en)}` : ``}
         </div>
         ${s.shift_where ? `<div class="small" style="margin-top:2px;">${esc(s.shift_where)}</div>` : ``}
@@ -945,6 +1119,7 @@ async function showCalendarWeek(weekOffset = 0) {
           <span class="pill">${slotsText(ac, cs)}</span>
           <div style="margin-top:8px;">${actionHtml}</div>
         </div>
+        ${renderMapLink(s.google_map_url)}
         ${renderNotesBox(s.notes)}
       `;
 
@@ -959,6 +1134,7 @@ async function showCalendarWeek(weekOffset = 0) {
 
 // ===== Announcements =====
 annBtn.onclick = () => {
+  setActiveNav(annBtn);
   content.innerHTML = `
     <h3>Announcements</h3>
     <div class="pill" style="margin-top:12px;">No announcements yet</div>
