@@ -18,6 +18,7 @@
   --accent2:#1d4ed8;
   --danger:#b00020;
   --ok:#0f766e;
+  --warn:#b45309;
 }
 *{box-sizing:border-box}
 body { font-family: system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif; background:var(--bg); margin:0; color:var(--text); }
@@ -28,35 +29,40 @@ body { font-family: system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif; ba
 button {
   padding:12px 16px; border-radius:12px; border:1px solid transparent;
   background:linear-gradient(180deg,var(--brand),var(--brand2));
-  color:#fff; font-weight:800; cursor:pointer;
+  color:#fff; font-weight:900; cursor:pointer;
   box-shadow:0 10px 18px rgba(17,24,39,.14);
 }
-button.secondary { background:#fff; color:var(--text); border-color:var(--line); box-shadow:none; font-weight:800; }
+button.secondary { background:#fff; color:var(--text); border-color:var(--line); box-shadow:none; font-weight:900; }
 button.danger { background:linear-gradient(180deg,#b00020,#8a0018); }
 button:disabled { opacity:.55; cursor:not-allowed; box-shadow:none; }
-input, textarea {
+
+input, textarea, select {
   padding:11px 12px; border-radius:12px; border:1px solid var(--line);
   background:#fff; color:var(--text); outline:none;
 }
-input:focus, textarea:focus{ border-color:rgba(37,99,235,.45); box-shadow:0 0 0 4px rgba(37,99,235,.12); }
+input:focus, textarea:focus, select:focus{ border-color:rgba(37,99,235,.45); box-shadow:0 0 0 4px rgba(37,99,235,.12); }
 textarea { width:100%; min-height:92px; resize:vertical; }
-.error { color:var(--danger); font-weight:700; margin-top:8px; }
+
+.error { color:var(--danger); font-weight:800; margin-top:8px; }
 .pill {
-  background:#f3f4f6; padding:6px 12px; border-radius:999px; font-size:13px; font-weight:900;
+  background:#f3f4f6; padding:6px 12px; border-radius:999px; font-size:13px; font-weight:1000;
   border:1px solid var(--line); display:inline-flex; align-items:center; gap:8px;
 }
 .pill.ok { background:rgba(15,118,110,.08); border-color:rgba(15,118,110,.25); color:var(--ok); }
 .pill.blue { background:rgba(37,99,235,.08); border-color:rgba(37,99,235,.25); color:var(--accent2); }
+.pill.warn { background:rgba(180,83,9,.10); border-color:rgba(180,83,9,.25); color:var(--warn); }
+
 .debug { font-weight:900; margin-top:10px; color:var(--muted); }
 hr { border:none; border-top:1px solid var(--line); margin:16px 0; }
 .small { color:var(--muted); font-size:13px; }
 .noteBox { margin-top:10px; padding:12px; border:1px solid var(--line); border-radius:14px; background:#fafafa; }
 .noteTitle { font-weight:1000; margin-bottom:6px; }
-label { font-weight:900; display:block; margin:10px 0 6px; color:#111827; }
+label { font-weight:1000; display:block; margin:10px 0 6px; color:#111827; }
 h2,h3,h4{margin:0 0 10px 0}
 h3{margin-top:6px}
-a{color:var(--accent); text-decoration:none; font-weight:900}
+a{color:var(--accent); text-decoration:none; font-weight:1000}
 a:hover{text-decoration:underline}
+
 .topbar{
   display:flex; justify-content:space-between; align-items:center; gap:14px;
   margin-bottom:14px;
@@ -69,10 +75,11 @@ a:hover{text-decoration:underline}
 }
 .brandTitle{display:flex; flex-direction:column; gap:2px}
 .brandTitle .name{font-weight:1000; letter-spacing:.2px}
-.brandTitle .tag{font-size:13px; color:var(--muted); font-weight:700}
+.brandTitle .tag{font-size:13px; color:var(--muted); font-weight:800}
+
 .nav{display:flex; gap:10px; flex-wrap:wrap; margin-top:10px;}
 .nav button{
-  background:#fff; border:1px solid var(--line); color:var(--text); box-shadow:none; font-weight:900;
+  background:#fff; border:1px solid var(--line); color:var(--text); box-shadow:none; font-weight:1000;
 }
 .nav button.active{
   border-color:rgba(37,99,235,.35);
@@ -173,14 +180,13 @@ const supabase = createClient(
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxuZXZ1ZWx3c2lld3hkcm1nY2toIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA3MzMyNjgsImV4cCI6MjA4NjMwOTI2OH0.voDpAvnscFh9-e70-xV4UBxtcO-TwYbU6V0JRPUFFIs"
 );
 
-const esc = s => String(s ?? "").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"}[m]));
-// fix double key
-const esc2 = s => String(s ?? "").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"}[m]));
+const esc = s => String(s ?? "").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"}[m]));
 const debug = msg => document.getElementById("debug").textContent = msg;
 debug("JS loaded ✅");
 
 let CURRENT_USER = null;
 let IS_ADMIN = false;
+let MY_CREDS = { role: null, is_driver: false };
 
 // ===== nav active state =====
 function setActiveNav(btn){
@@ -201,6 +207,19 @@ async function checkAdmin(userId) {
     .eq("user_id", userId)
     .single();
   return !!data?.is_admin;
+}
+
+// pull role + driver flag
+async function loadMyCreds(userId) {
+  const { data } = await supabase
+    .from("user_roles")
+    .select("role,is_driver")
+    .eq("user_id", userId)
+    .single();
+  return {
+    role: data?.role ?? null,
+    is_driver: !!data?.is_driver
+  };
 }
 
 function fmtDT(dt) {
@@ -248,7 +267,7 @@ function renderNotesBox(notes) {
   return `
     <div class="noteBox">
       <div class="noteTitle">Notes</div>
-      <div>${esc2(n).replace(/\\n/g,"<br>")}</div>
+      <div>${esc(n).replace(/\\n/g,"<br>")}</div>
     </div>
   `;
 }
@@ -256,13 +275,13 @@ function renderNotesBox(notes) {
 function renderEventMapLink(url) {
   const u = (url || "").trim();
   if (!u) return "";
-  return `<a href="${esc2(u)}" target="_blank" rel="noopener">🗺️ Event Map</a>`;
+  return `<a href="${esc(u)}" target="_blank" rel="noopener">🗺️ Event Map</a>`;
 }
 
 function renderDirectionsLinkFromUrl(url) {
   const u = (url || "").trim();
   if (!u) return "";
-  return `<a href="${esc2(u)}" target="_blank" rel="noopener">🧭 Directions</a>`;
+  return `<a href="${esc(u)}" target="_blank" rel="noopener">🧭 Directions</a>`;
 }
 
 function renderLinkRow(mapUrl, directionsUrl) {
@@ -274,6 +293,87 @@ function renderLinkRow(mapUrl, directionsUrl) {
   if (!a.length) return "";
   return `<div class="linkRow">${a.join("")}</div>`;
 }
+
+// ===== requirements / gating =====
+function reqPills(s) {
+  const pills = [];
+  if (s.required_role) pills.push(`<span class="pill warn">Req: ${esc(s.required_role)}</span>`);
+  if (s.requires_driver) pills.push(`<span class="pill warn">Driver required</span>`);
+  return pills.length ? `<div class="row" style="margin-top:10px;">${pills.join("")}</div>` : "";
+}
+
+function canUserClaimShift(s) {
+  // returns { ok:boolean, reason:string }
+  if (s.required_role) {
+    const need = String(s.required_role).trim().toLowerCase();
+    const have = String(MY_CREDS.role || "").trim().toLowerCase();
+    if (!have || have !== need) return { ok:false, reason:`Requires ${s.required_role}` };
+  }
+  if (s.requires_driver && !MY_CREDS.is_driver) {
+    return { ok:false, reason:"Driver required" };
+  }
+  return { ok:true, reason:"" };
+}
+
+// ===== share text =====
+function buildShiftShareText(s) {
+  const parts = [];
+  parts.push(`First Line EMS Shift: ${s.title || "Shift"}`);
+  parts.push(`When: ${fmtDT(s.start_time)}${s.end_time ? " – " + fmtDT(s.end_time) : ""}`);
+  if (s.shift_where) parts.push(`Where: ${s.shift_where}`);
+
+  // requirements line
+  const reqBits = [];
+  if (s.required_role) reqBits.push(`Role: ${s.required_role}`);
+  if (s.requires_driver) reqBits.push(`Driver required`);
+  if (reqBits.length) parts.push(`Requirements: ${reqBits.join(" • ")}`);
+
+  if (s.google_map_url) parts.push(`Event Map: ${s.google_map_url}`);
+  if (s.directions_url) parts.push(`Directions: ${s.directions_url}`);
+
+  const n = (s.notes || "").trim();
+  if (n) {
+    parts.push("");
+    parts.push("Notes:");
+    parts.push(n);
+  }
+
+  parts.push("");
+  parts.push("Claim in the portal if you can cover.");
+
+  return parts.join("\n");
+}
+
+async function copyTextToClipboard(text) {
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch {
+    // fallback
+    try {
+      const ta = document.createElement("textarea");
+      ta.value = text;
+      ta.style.position = "fixed";
+      ta.style.left = "-9999px";
+      document.body.appendChild(ta);
+      ta.focus();
+      ta.select();
+      document.execCommand("copy");
+      document.body.removeChild(ta);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+}
+
+window.copyShiftShare = async (shiftObjJson) => {
+  if (!IS_ADMIN) return alert("Admins only.");
+  const s = JSON.parse(shiftObjJson);
+  const txt = buildShiftShareText(s);
+  const ok = await copyTextToClipboard(txt);
+  alert(ok ? "Copied shift message ✅" : "Copy failed — your browser blocked clipboard access.");
+};
 
 // ===== auth UI =====
 loginBtn.onclick = async () => {
@@ -294,6 +394,7 @@ logoutBtn.onclick = async () => {
 async function showPortal(user) {
   CURRENT_USER = user;
   IS_ADMIN = await checkAdmin(user.id);
+  MY_CREDS = await loadMyCreds(user.id);
 
   login.classList.add("hidden");
   portal.classList.remove("hidden");
@@ -356,6 +457,9 @@ async function showSchedule() {
       <div>
         <h3>Scheduling</h3>
         <div class="small">Claim shifts for approval. Approved shifts appear in “My Requests / Shifts”.</div>
+        <div class="small" style="margin-top:6px;">
+          Your role: <b>${esc(MY_CREDS.role || "Not set")}</b> • Driver: <b>${MY_CREDS.is_driver ? "Yes" : "No"}</b>
+        </div>
       </div>
       <span class="pill blue">${IS_ADMIN ? "Admin" : "Employee"}</span>
     </div>
@@ -384,6 +488,25 @@ async function showSchedule() {
         <div>
           <label>Crew Size</label>
           <input id="screw" type="number" min="1" value="1" style="width:100%;" />
+        </div>
+      </div>
+
+      <div class="row" style="margin-top:10px;">
+        <div style="flex:1; min-width:240px;">
+          <label>Required Role (optional)</label>
+          <select id="srole" style="width:100%;">
+            <option value="">None</option>
+            <option value="EMT">EMT</option>
+            <option value="EMR">EMR</option>
+            <option value="Driver">Driver</option>
+            <option value="Supervisor">Supervisor</option>
+          </select>
+        </div>
+        <div style="flex:1; min-width:240px;">
+          <label style="display:flex; gap:10px; align-items:center; margin-top:28px;">
+            <input id="sdriver" type="checkbox" style="width:18px; height:18px;" />
+            Requires Driver
+          </label>
         </div>
       </div>
 
@@ -418,6 +541,8 @@ async function showSchedule() {
       const notes = (snotes.value || "").trim();
       const mapUrl = (smap.value || "").trim();
       const dirUrl = (sdir.value || "").trim();
+      const requiredRole = (srole.value || "").trim();
+      const requiresDriver = !!sdriver.checked;
 
       if (!title || !startVal || !endVal) {
         perr.textContent = "Enter a title, start, and end time.";
@@ -433,6 +558,8 @@ async function showSchedule() {
         notes,
         google_map_url: mapUrl || null,
         directions_url: dirUrl || null,
+        required_role: requiredRole || null,
+        requires_driver: requiresDriver,
         created_by: CURRENT_USER.id
       });
 
@@ -449,6 +576,8 @@ async function showSchedule() {
       snotes.value = "";
       smap.value = "";
       sdir.value = "";
+      srole.value = "";
+      sdriver.checked = false;
 
       await loadShifts();
     };
@@ -464,7 +593,7 @@ async function loadShifts() {
     .order("start_time", { ascending: true });
 
   if (error) {
-    content.innerHTML += `<div class="error">${esc2(error.message)}</div>`;
+    content.innerHTML += `<div class="error">${esc(error.message)}</div>`;
     return;
   }
 
@@ -480,12 +609,15 @@ async function loadShifts() {
     const full = ac >= cs;
 
     const mine = myStatus[s.id];
-    let claimBtnHtml = "";
 
+    const gate = canUserClaimShift(s);
+
+    let claimBtnHtml = "";
     if (full) claimBtnHtml = `<span class="pill">Filled</span>`;
     else if (mine === "pending") claimBtnHtml = `<span class="pill blue">Pending approval</span>`;
     else if (mine === "approved") claimBtnHtml = `<span class="pill ok">You’re approved</span>`;
     else if (mine === "removal_requested") claimBtnHtml = `<span class="pill">Removal requested</span>`;
+    else if (!gate.ok) claimBtnHtml = `<button disabled title="${esc(gate.reason)}">Claim</button><div class="small" style="margin-top:6px;">${esc(gate.reason)}</div>`;
     else claimBtnHtml = `<button onclick="claimShift('${s.id}')">Claim</button>`;
 
     const notesHtml = renderNotesBox(s.notes);
@@ -495,24 +627,36 @@ async function loadShifts() {
       <div class="row" style="margin-top:10px;">
         <button class="secondary" onclick="editShift('${s.id}')">Edit</button>
         <button class="secondary" onclick="manageShift('${s.id}')">Manage</button>
+        <button class="secondary" onclick="copyShiftShare('${esc(JSON.stringify({
+          title: s.title,
+          start_time: s.start_time,
+          end_time: s.end_time,
+          shift_where: s.shift_where,
+          notes: s.notes,
+          google_map_url: s.google_map_url,
+          directions_url: s.directions_url,
+          required_role: s.required_role,
+          requires_driver: s.requires_driver
+        })).replace(/"/g,"&quot;")}')">Copy Share</button>
         <button class="danger" onclick="deleteShift('${s.id}')">Delete</button>
       </div>
-      <div class="small">Edit = change time/crew/notes/links. Manage = remove approved members. Delete = remove shift entirely.</div>
+      <div class="small">Copy Share copies a text message you can paste to staff.</div>
     ` : ``;
 
     return `
       <div class="card">
         <div class="row" style="justify-content:space-between; align-items:flex-start;">
           <div style="min-width:240px;">
-            <div style="font-weight:1000; font-size:16px;">${esc2(s.title)}</div>
+            <div style="font-weight:1000; font-size:16px;">${esc(s.title)}</div>
             <div class="small" style="margin-top:6px;">
               🕒 ${fmtDT(s.start_time)}${s.end_time ? ` – ${fmtDT(s.end_time)}` : ""}
             </div>
-            ${s.shift_where ? `<div style="margin-top:8px;"><span class="pill">${esc2(s.shift_where)}</span></div>` : ``}
+            ${s.shift_where ? `<div style="margin-top:8px;"><span class="pill">${esc(s.shift_where)}</span></div>` : ``}
             <div style="margin-top:8px;">
               <span class="pill" style="margin-right:8px;">${slotsText(ac, cs)}</span>
               ${full ? `<span class="pill">Full</span>` : `<span class="pill ok">Open</span>`}
             </div>
+            ${reqPills(s)}
           </div>
 
           <div style="text-align:right;">
@@ -584,6 +728,25 @@ window.editShift = async (shiftId) => {
       <input id="ecrew" type="number" min="1" style="width:160px;" />
       <div class="small">Crew size cannot be less than approved count (${approvedCount}).</div>
 
+      <div class="row" style="margin-top:10px;">
+        <div style="flex:1; min-width:240px;">
+          <label>Required Role (optional)</label>
+          <select id="erole" style="width:100%;">
+            <option value="">None</option>
+            <option value="EMT">EMT</option>
+            <option value="EMR">EMR</option>
+            <option value="Driver">Driver</option>
+            <option value="Supervisor">Supervisor</option>
+          </select>
+        </div>
+        <div style="flex:1; min-width:240px;">
+          <label style="display:flex; gap:10px; align-items:center; margin-top:28px;">
+            <input id="edriver" type="checkbox" style="width:18px; height:18px;" />
+            Requires Driver
+          </label>
+        </div>
+      </div>
+
       <label>Event Map Link (optional)</label>
       <input id="emap" placeholder="https://www.google.com/maps/d/..." style="width:100%;" />
 
@@ -606,6 +769,8 @@ window.editShift = async (shiftId) => {
   document.getElementById("enotes").value = shift.notes || "";
   document.getElementById("emap").value = shift.google_map_url || "";
   document.getElementById("edir").value = shift.directions_url || "";
+  document.getElementById("erole").value = shift.required_role || "";
+  document.getElementById("edriver").checked = !!shift.requires_driver;
 
   document.getElementById("saveShiftBtn").onclick = async () => {
     const eerr = document.getElementById("eerr");
@@ -619,6 +784,8 @@ window.editShift = async (shiftId) => {
     const crew = Math.max(1, parseInt(document.getElementById("ecrew").value || "1", 10));
     const mapUrl = (document.getElementById("emap").value || "").trim();
     const dirUrl = (document.getElementById("edir").value || "").trim();
+    const requiredRole = (document.getElementById("erole").value || "").trim();
+    const requiresDriver = !!document.getElementById("edriver").checked;
 
     if (!title || !startVal || !endVal) {
       eerr.textContent = "Title, start, and end are required.";
@@ -639,7 +806,9 @@ window.editShift = async (shiftId) => {
         crew_size: crew,
         notes,
         google_map_url: mapUrl || null,
-        directions_url: dirUrl || null
+        directions_url: dirUrl || null,
+        required_role: requiredRole || null,
+        requires_driver: requiresDriver
       })
       .eq("id", shiftId)
       .select("id");
@@ -657,6 +826,17 @@ window.editShift = async (shiftId) => {
 
 // ===== Claim / Cancel / Removal Request =====
 window.claimShift = async (shiftId) => {
+  // quick client-side gate (server-side is better, but this prevents obvious mismatch)
+  const { data: shift, error: sErr } = await supabase
+    .from("shifts")
+    .select("id,crew_size,required_role,requires_driver")
+    .eq("id", shiftId)
+    .single();
+  if (sErr) return alert(sErr.message);
+
+  const gate = canUserClaimShift(shift);
+  if (!gate.ok) return alert("Cannot claim: " + gate.reason);
+
   const { data: mine, error: mineErr } = await supabase
     .from("shift_claims")
     .select("id,status")
@@ -667,13 +847,6 @@ window.claimShift = async (shiftId) => {
 
   if (mineErr) return alert(mineErr.message);
   if (mine && mine.length) return alert("You already have a request for this shift.");
-
-  const { data: shift, error: sErr } = await supabase
-    .from("shifts")
-    .select("id,crew_size")
-    .eq("id", shiftId)
-    .single();
-  if (sErr) return alert(sErr.message);
 
   const { data: approvedRows, error: aErr } = await supabase
     .from("shift_claims")
@@ -729,12 +902,12 @@ async function showMyRequests() {
 
   const { data, error } = await supabase
     .from("shift_claims")
-    .select("id,status,created_at,shift_id,shifts(title,start_time,end_time,shift_where,crew_size,notes,google_map_url,directions_url)")
+    .select("id,status,created_at,shift_id,shifts(title,start_time,end_time,shift_where,crew_size,notes,google_map_url,directions_url,required_role,requires_driver)")
     .eq("user_id", CURRENT_USER.id)
     .in("status", ["pending","approved","removal_requested"])
     .order("created_at", { ascending: false });
 
-  if (error) { content.innerHTML = `<div class="error">${esc2(error.message)}</div>`; return; }
+  if (error) { content.innerHTML = `<div class="error">${esc(error.message)}</div>`; return; }
 
   const rows = data || [];
   const pending = rows.filter(r => r.status === "pending");
@@ -743,9 +916,10 @@ async function showMyRequests() {
 
   const renderShiftCard = (r, badgeHtml, actionHtml="") => `
     <div class="card sectionCard">
-      <div style="font-weight:1000; font-size:16px;">${esc2(r.shifts?.title || "Shift")}</div>
+      <div style="font-weight:1000; font-size:16px;">${esc(r.shifts?.title || "Shift")}</div>
       <div class="small" style="margin-top:6px;">🕒 ${fmtDT(r.shifts?.start_time)}${r.shifts?.end_time ? ` – ${fmtDT(r.shifts.end_time)}` : ""}</div>
-      ${r.shifts?.shift_where ? `<div style="margin-top:8px;"><span class="pill">${esc2(r.shifts.shift_where)}</span></div>` : ``}
+      ${r.shifts?.shift_where ? `<div style="margin-top:8px;"><span class="pill">${esc(r.shifts.shift_where)}</span></div>` : ``}
+      ${reqPills(r.shifts || {})}
       <div style="margin-top:10px;">${badgeHtml}${actionHtml}</div>
       ${renderLinkRow(r.shifts?.google_map_url, r.shifts?.directions_url)}
       ${renderNotesBox(r.shifts?.notes)}
@@ -790,19 +964,19 @@ apprBtn.onclick = async () => {
 
   const { data: pending, error: pErr } = await supabase
     .from("shift_claims")
-    .select("id,user_id,user_email,shift_id,status,created_at,shifts(id,title,start_time,end_time,shift_where,crew_size,notes,google_map_url,directions_url)")
+    .select("id,user_id,user_email,shift_id,status,created_at,shifts(id,title,start_time,end_time,shift_where,crew_size,notes,google_map_url,directions_url,required_role,requires_driver)")
     .eq("status", "pending")
     .order("created_at", { ascending: false });
 
-  if (pErr) return content.innerHTML = `<div class="error">${esc2(pErr.message)}</div>`;
+  if (pErr) return content.innerHTML = `<div class="error">${esc(pErr.message)}</div>`;
 
   const { data: removal, error: rErr } = await supabase
     .from("shift_claims")
-    .select("id,user_id,user_email,shift_id,status,created_at,shifts(id,title,start_time,end_time,shift_where,crew_size,notes,google_map_url,directions_url)")
+    .select("id,user_id,user_email,shift_id,status,created_at,shifts(id,title,start_time,end_time,shift_where,crew_size,notes,google_map_url,directions_url,required_role,requires_driver)")
     .eq("status", "removal_requested")
     .order("created_at", { ascending: false });
 
-  if (rErr) return content.innerHTML = `<div class="error">${esc2(rErr.message)}</div>`;
+  if (rErr) return content.innerHTML = `<div class="error">${esc(rErr.message)}</div>`;
 
   const shiftIds = Array.from(new Set([...(pending||[]).map(x=>x.shift_id), ...(removal||[]).map(x=>x.shift_id)]));
   const approvedCounts = await getApprovedCountsForShiftIds(shiftIds);
@@ -819,16 +993,17 @@ apprBtn.onclick = async () => {
 
       return `
         <div class="card sectionCard">
-          <div style="font-weight:1000; font-size:16px;">${esc2(s.title || "Shift")}</div>
+          <div style="font-weight:1000; font-size:16px;">${esc(s.title || "Shift")}</div>
           <div class="small" style="margin-top:6px;">🕒 ${fmtDT(s.start_time)}${s.end_time ? ` – ${fmtDT(s.end_time)}` : ""}</div>
-          ${s.shift_where ? `<div style="margin-top:8px;"><span class="pill">${esc2(s.shift_where)}</span></div>` : ``}
+          ${s.shift_where ? `<div style="margin-top:8px;"><span class="pill">${esc(s.shift_where)}</span></div>` : ``}
+          ${reqPills(s)}
           <div style="margin-top:10px;">
             <span class="pill">${slotsText(ac, cs)}</span>
             ${full ? `<span class="pill" style="margin-left:8px;">Full</span>` : `<span class="pill ok" style="margin-left:8px;">Open</span>`}
           </div>
           ${renderLinkRow(s.google_map_url, s.directions_url)}
           ${renderNotesBox(s.notes)}
-          <div style="margin-top:10px;">Claimed by: <b>${esc2(c.user_email || c.user_id)}</b></div>
+          <div style="margin-top:10px;">Claimed by: <b>${esc(c.user_email || c.user_id)}</b></div>
           <div class="row" style="margin-top:10px;">
             <button ${full ? "disabled" : ""} onclick="approveClaim('${c.id}')">${full ? "Full" : "Approve"}</button>
             <button class="secondary" onclick="denyClaim('${c.id}')">Deny</button>
@@ -847,13 +1022,14 @@ apprBtn.onclick = async () => {
 
       return `
         <div class="card sectionCard">
-          <div style="font-weight:1000; font-size:16px;">${esc2(s.title || "Shift")}</div>
+          <div style="font-weight:1000; font-size:16px;">${esc(s.title || "Shift")}</div>
           <div class="small" style="margin-top:6px;">🕒 ${fmtDT(s.start_time)}${s.end_time ? ` – ${fmtDT(s.end_time)}` : ""}</div>
-          ${s.shift_where ? `<div style="margin-top:8px;"><span class="pill">${esc2(s.shift_where)}</span></div>` : ``}
+          ${s.shift_where ? `<div style="margin-top:8px;"><span class="pill">${esc(s.shift_where)}</span></div>` : ``}
+          ${reqPills(s)}
           <div style="margin-top:10px;"><span class="pill">${slotsText(ac, cs)}</span></div>
           ${renderLinkRow(s.google_map_url, s.directions_url)}
           ${renderNotesBox(s.notes)}
-          <div style="margin-top:10px;">Employee: <b>${esc2(c.user_email || c.user_id)}</b></div>
+          <div style="margin-top:10px;">Employee: <b>${esc(c.user_email || c.user_id)}</b></div>
           <div class="row" style="margin-top:10px;">
             <button onclick="approveRemoval('${c.id}')">Approve Removal</button>
             <button class="secondary" onclick="denyRemoval('${c.id}')">Deny Removal</button>
@@ -889,7 +1065,7 @@ window.denyRemoval = async (claimId) => {
   apprBtn.onclick();
 };
 
-// ===== Admin: Manage shift (remove member) / Delete shift =====
+// ===== Admin: Manage shift / Delete shift =====
 window.manageShift = async (shiftId) => {
   if (!IS_ADMIN) return alert("Admins only.");
 
@@ -921,9 +1097,10 @@ window.manageShift = async (shiftId) => {
     </div>
 
     <div class="card sectionCard">
-      <div style="font-weight:1000; font-size:16px;">${esc2(shift.title)}</div>
+      <div style="font-weight:1000; font-size:16px;">${esc(shift.title)}</div>
       <div class="small" style="margin-top:6px;">🕒 ${fmtDT(shift.start_time)}${shift.end_time ? ` – ${fmtDT(shift.end_time)}` : ""}</div>
-      ${shift.shift_where ? `<div style="margin-top:8px;"><span class="pill">${esc2(shift.shift_where)}</span></div>` : ``}
+      ${shift.shift_where ? `<div style="margin-top:8px;"><span class="pill">${esc(shift.shift_where)}</span></div>` : ``}
+      ${reqPills(shift)}
       <div style="margin-top:10px;"><span class="pill">${slotsText(ac, cs)}</span></div>
       ${renderLinkRow(shift.google_map_url, shift.directions_url)}
       ${renderNotesBox(shift.notes)}
@@ -932,7 +1109,7 @@ window.manageShift = async (shiftId) => {
     <h4 style="margin-top:12px;">Approved Members</h4>
     ${(approved || []).length ? (approved || []).map(m => `
       <div class="card sectionCard" style="box-shadow:none;">
-        <div style="font-weight:900;">${esc2(m.user_email || m.user_id)}</div>
+        <div style="font-weight:1000;">${esc(m.user_email || m.user_id)}</div>
         <div class="row" style="margin-top:10px;">
           <button class="danger" onclick="adminRemoveApproved('${m.id}')">Remove</button>
         </div>
@@ -1049,11 +1226,14 @@ async function showCalendarWeek(weekOffset = 0) {
       const full = ac >= cs;
 
       const mine = myStatus[s.id];
+      const gate = canUserClaimShift(s);
+
       let actionHtml = "";
       if (full) actionHtml = `<span class="pill">Filled</span>`;
       else if (mine === "pending") actionHtml = `<span class="pill blue">Pending</span>`;
       else if (mine === "approved") actionHtml = `<span class="pill ok">Approved</span>`;
       else if (mine === "removal_requested") actionHtml = `<span class="pill">Removal req.</span>`;
+      else if (!gate.ok) actionHtml = `<button disabled title="${esc(gate.reason)}">Claim</button>`;
       else actionHtml = `<button onclick="claimShift('${s.id}')">Claim</button>`;
 
       const block = document.createElement("div");
@@ -1063,12 +1243,14 @@ async function showCalendarWeek(weekOffset = 0) {
       block.style.background = "#fff";
 
       block.innerHTML = `
-        <div style="font-weight:900;">${esc2(s.title)}</div>
+        <div style="font-weight:1000;">${esc(s.title)}</div>
         <div class="small" style="margin-top:4px;">${fmtTime(st)}${en ? ` – ${fmtTime(en)}` : ``}</div>
-        ${s.shift_where ? `<div class="small" style="margin-top:2px;">${esc2(s.shift_where)}</div>` : ``}
+        ${s.shift_where ? `<div class="small" style="margin-top:2px;">${esc(s.shift_where)}</div>` : ``}
+        ${reqPills(s)}
         <div style="margin-top:8px;">
           <span class="pill">${slotsText(ac, cs)}</span>
           <div style="margin-top:8px;">${actionHtml}</div>
+          ${!gate.ok && !full && !mine ? `<div class="small" style="margin-top:6px;">${esc(gate.reason)}</div>` : ``}
         </div>
         ${renderLinkRow(s.google_map_url, s.directions_url)}
         ${renderNotesBox(s.notes)}
