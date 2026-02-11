@@ -663,7 +663,9 @@ window.adminRemoveApproved = async (claimId) => {
 
 window.deleteShift = async (shiftId) => {
   if (!IS_ADMIN) return alert("Admins only.");
-  if (!confirm("Delete this shift? This will delete all related claims too.")) return;
+  if (!confirm(
+  "DELETE SHIFT?\n\nThis permanently removes the shift and all claims.\nThis cannot be undone."
+)) return;
 
   // delete claims first (safe)
   const { error: e1 } = await supabase
