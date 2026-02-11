@@ -1,1316 +1,1276 @@
 <script type="module">
 (async () => {
-try {
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-
-const supabase = createClient(
-  "https://lnevuelwsiewxdrmgckh.supabase.co",
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxuZXZ1ZWx3c2lld3hkcm1nY2toIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA3MzMyNjgsImV4cCI6MjA4NjMwOTI2OH0.voDpAvnscFh9-e70-xV4UBxtcO-TwYbU6V0JRPUFFIs"
-);
-
-const esc = (s) =>
-  String(s ?? "").replace(/[&<>"']/g, (m) => ({
-    "&": "&amp;",
-    "<": "&lt;",
-    ">": "&gt;",
-    "\"": "&quot;",
-    "'": "&#039;"
-  }[m]));
-
-const esc = s => String(s ?? "").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"}[m]));
-
-const debug = (msg) => {
-  const el = document.getElementById("debug");
-  if (el) el.textContent = msg;
-  console.log("[PORTAL]", msg);
-};
-
-debug("JS loaded ✅ (vercel-test)");
-
-let CURRENT_USER = null;
-let IS_ADMIN = false;
-let MY_CREDS = { role: null };
-
-// ===== nav active state =====
-function setActiveNav(btn) {
-  const all = [
-    typeof schedBtn !== "undefined" ? schedBtn : null,
-    typeof calBtn !== "undefined" ? calBtn : null,
-    typeof myBtn !== "undefined" ? myBtn : null,
-    typeof annBtn !== "undefined" ? annBtn : null,
-    typeof apprBtn !== "undefined" ? apprBtn : null,
-    typeof usersBtn !== "undefined" ? usersBtn : null
-  ].filter(Boolean);
-
-  all.forEach(b => b.classList.remove("active"));
-  if (btn) btn.classList.add("active");
-}
-
-// ===== helpers =====
-async function getUser() {
-  const { data } = await supabase.auth.getSession();
-  return data?.session?.user;
-}
-
-async function checkAdmin(userId) {
-  const { data } = await supabase
-    .from("user_roles")
-    .select("is_admin")
-    .eq("user_id", userId)
-    .single();
-  return !!data?.is_admin;
-}
-
-// pull role only
-async function loadMyCreds(userId) {
-  const { data } = await supabase
-    .from("user_roles")
-    .select("role")
-    .eq("user_id", userId)
-    .single();
-  return { role: data?.role ?? null };
-}
-
-function fmtDT(dt) {
-  if (!dt) return "";
-  try { return new Date(dt).toLocaleString(); }
-  catch { return String(dt); }
-}
-
-function toLocalInputValue(isoOrValue) {
-  if (!isoOrValue) return "";
-  const d = new Date(isoOrValue);
-  if (isNaN(d.getTime())) return "";
-  const pad = (n) => String(n).padStart(2, "0");
-  const yyyy = d.getFullYear();
-  const mm = pad(d.getMonth() + 1);
-  const dd = pad(d.getDate());
-  const hh = pad(d.getHours());
-  const mi = pad(d.getMinutes());
-  return `${yyyy}-${mm}-${dd}T${hh}:${mi}`;
-}
-
-// Monday-start week helpers
-function startOfWeek(d) {
-  const date = new Date(d);
-  const day = (date.getDay() + 6) % 7; // Mon=0 ... Sun=6
-  date.setHours(0, 0, 0, 0);
-  date.setDate(date.getDate() - day);
-  return date;
-}
-function addDays(d, n) {
-  const x = new Date(d);
-  x.setDate(x.getDate() + n);
-  return x;
-}
-function fmtDay(d) {
-  return d.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
-}
-function fmtTime(d) {
-  return d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
-}
-
-// ===== boxes / links =====
-function renderNotesBox(notes) {
-  const n = (notes || "").trim();
-  if (!n) return "";
-  return `
-    <div class="noteBox">
-      <div class="noteTitle">Notes</div>
-      <div>${esc(n).replace(/\n/g, "<br>")}</div>
-    </div>
-  `;
-}
-
-function renderEventMapLink(url) {
-  const u = (url || "").trim();
-  if (!u) return "";
-  return `<a href="${esc(u)}" target="_blank" rel="noopener">🗺️ Event Map</a>`;
-}
-
-function renderDirectionsLinkFromUrl(url) {
-  const u = (url || "").trim();
-  if (!u) return "";
-  return `<a href="${esc(u)}" target="_blank" rel="noopener">🧭 Directions</a>`;
-}
-
-function renderLinkRow(mapUrl, directionsUrl) {
-  const a = [];
-  const map = renderEventMapLink(mapUrl);
-  const dir = renderDirectionsLinkFromUrl(directionsUrl);
-  if (map) a.push(map);
-  if (dir) a.push(dir);
-  if (!a.length) return "";
-  return `<div class="linkRow">${a.join("")}</div>`;
-}
-
-// ===== requirements / gating =====
-function reqPills(s) {
-  const pills = [];
-  if (s?.required_role) pills.push(`<span class="pill warn">Req: ${esc(s.required_role)}</span>`);
-  return pills.length ? `<div class="row" style="margin-top:10px;">${pills.join("")}</div>` : "";
-}
-
-function canUserClaimShift(s) {
-  if (s?.required_role) {
-    const need = String(s.required_role).trim().toLowerCase();
-    const have = String(MY_CREDS.role || "").trim().toLowerCase();
-    if (!have || have !== need) return { ok: false, reason: `Requires ${s.required_role}` };
-  }
-  return { ok: true, reason: "" };
-}
-
-// ===== share text =====
-function buildShiftShareText(s) {
-  const parts = [];
-  parts.push(`First Line EMS Shift: ${s.title || "Shift"}`);
-  parts.push(`When: ${fmtDT(s.start_time)}${s.end_time ? " – " + fmtDT(s.end_time) : ""}`);
-  if (s.shift_where) parts.push(`Where: ${s.shift_where}`);
-
-  if (s.required_role) parts.push(`Requirements: Role: ${s.required_role}`);
-
-  if (s.google_map_url) parts.push(`Event Map: ${s.google_map_url}`);
-  if (s.directions_url) parts.push(`Directions: ${s.directions_url}`);
-
-  const n = (s.notes || "").trim();
-  if (n) {
-    parts.push("");
-    parts.push("Notes:");
-    parts.push(n);
-  }
-
-  parts.push("");
-  parts.push("Claim in the portal if you can cover.");
-  return parts.join("\n");
-}
-
-async function copyTextToClipboard(text) {
   try {
-    await navigator.clipboard.writeText(text);
-    return true;
-  } catch {
-    try {
-      const ta = document.createElement("textarea");
-      ta.value = text;
-      ta.style.position = "fixed";
-      ta.style.left = "-9999px";
-      document.body.appendChild(ta);
-      ta.focus();
-      ta.select();
-      document.execCommand("copy");
-      document.body.removeChild(ta);
-      return true;
-    } catch {
-      return false;
+    // --- Load Supabase safely (GitHub Pages friendly) ---
+    const { createClient } = await import("https://esm.sh/@supabase/supabase-js@2");
+
+    const SUPABASE_URL = "https://lnevuelwsiewxdrmgckh.supabase.co";
+    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxuZXZ1ZWx3c2lld3hkcm1nY2toIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA3MzMyNjgsImV4cCI6MjA4NjMwOTI2OH0.voDpAvnscFh9-e70-xV4UBxtcO-TwYbU6V0JRPUFFIs";
+
+    const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    // --- Helpers ---
+    const esc = (s) =>
+      String(s ?? "").replace(/[&<>"']/g, (m) => ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        "\"": "&quot;",
+        "'": "&#039;",
+      }[m]));
+
+    const debug = (msg) => {
+      const el = document.getElementById("debug");
+      if (el) el.textContent = msg;
+      console.log("[PORTAL]", msg);
+    };
+
+    debug("JS loaded ✅");
+
+    let CURRENT_USER = null;
+    let IS_ADMIN = false;
+    let MY_CREDS = { role: null };
+
+    function setActiveNav(btn) {
+      const all = [schedBtn, calBtn, myBtn, annBtn, apprBtn, (typeof usersBtn !== "undefined" ? usersBtn : null)].filter(Boolean);
+      all.forEach(b => b.classList.remove("active"));
+      if (btn) btn.classList.add("active");
     }
-  }
-}
 
-window.copyShiftShare = async (shiftObjJson) => {
-  if (!IS_ADMIN) return alert("Admins only.");
-  const s = JSON.parse(shiftObjJson);
-  const txt = buildShiftShareText(s);
-  const ok = await copyTextToClipboard(txt);
-  alert(ok ? "Copied shift message ✅" : "Copy failed — your browser blocked clipboard access.");
-};
+    async function getUser() {
+      const { data } = await supabase.auth.getSession();
+      return data?.session?.user;
+    }
 
-// ===== auth UI =====
-loginBtn.onclick = async () => {
-  loginError.textContent = "";
-  const { data, error } = await supabase.auth.signInWithPassword({
-    email: email.value,
-    password: password.value
-  });
-  if (error) return loginError.textContent = error.message;
-  await showPortal(data.user);
-};
+    async function checkAdmin(userId) {
+      const { data, error } = await supabase
+        .from("user_roles")
+        .select("is_admin")
+        .eq("user_id", userId)
+        .single();
+      if (error) return false;
+      return !!data?.is_admin;
+    }
 
-logoutBtn.onclick = async () => {
-  await supabase.auth.signOut();
-  location.reload();
-};
+    async function loadMyCreds(userId) {
+      const { data } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", userId)
+        .single();
+      return { role: data?.role ?? null };
+    }
 
-async function showPortal(user) {
-  CURRENT_USER = user;
-  IS_ADMIN = await checkAdmin(user.id);
-  MY_CREDS = await loadMyCreds(user.id);
+    function fmtDT(dt) {
+      if (!dt) return "";
+      try { return new Date(dt).toLocaleString(); } catch { return String(dt); }
+    }
 
-  login.classList.add("hidden");
-  portal.classList.remove("hidden");
-  userEmail.textContent = user.email;
+    function toLocalInputValue(isoOrValue) {
+      if (!isoOrValue) return "";
+      const d = new Date(isoOrValue);
+      if (isNaN(d.getTime())) return "";
+      const pad = (n) => String(n).padStart(2, "0");
+      return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    }
 
-  apprBtn.style.display = IS_ADMIN ? "inline-block" : "none";
-  if (typeof usersBtn !== "undefined") usersBtn.style.display = IS_ADMIN ? "inline-block" : "none";
+    // Monday-start week helpers
+    function startOfWeek(d) {
+      const date = new Date(d);
+      const day = (date.getDay() + 6) % 7;
+      date.setHours(0,0,0,0);
+      date.setDate(date.getDate() - day);
+      return date;
+    }
+    function addDays(d, n) {
+      const x = new Date(d);
+      x.setDate(x.getDate() + n);
+      return x;
+    }
+    function fmtDay(d) {
+      return d.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
+    }
+    function fmtTime(d) {
+      return d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+    }
 
-  await showSchedule();
-}
-
-// ===== Core data helpers for slots / claims =====
-async function getApprovedCountsForShiftIds(shiftIds) {
-  const map = {};
-  shiftIds.forEach(id => map[id] = 0);
-  if (!shiftIds.length) return map;
-
-  const { data, error } = await supabase
-    .from("shift_claims")
-    .select("shift_id,status")
-    .in("shift_id", shiftIds)
-    .eq("status", "approved");
-
-  if (error) return map;
-
-  (data || []).forEach(r => {
-    map[r.shift_id] = (map[r.shift_id] || 0) + 1;
-  });
-  return map;
-}
-
-async function getMyClaimStatusMapForShiftIds(shiftIds) {
-  const map = {};
-  if (!shiftIds.length) return map;
-
-  const { data, error } = await supabase
-    .from("shift_claims")
-    .select("shift_id,status")
-    .in("shift_id", shiftIds)
-    .eq("user_id", CURRENT_USER.id)
-    .in("status", ["pending", "approved", "removal_requested"]);
-
-  if (error) return map;
-
-  (data || []).forEach(r => { map[r.shift_id] = r.status; });
-  return map;
-}
-
-function slotsText(approvedCount, crewSize) {
-  const cs = Math.max(1, Number(crewSize || 1));
-  const ac = Number(approvedCount || 0);
-  return `${ac}/${cs} filled`;
-}
-
-// ===== Scheduling (list) =====
-async function showSchedule() {
-  setActiveNav(schedBtn);
-
-  content.innerHTML = `
-    <div class="row" style="justify-content:space-between; align-items:flex-end;">
-      <div>
-        <h3>Scheduling</h3>
-        <div class="small">Claim shifts for approval. Approved shifts appear in “My Requests / Shifts”.</div>
-        <div class="small" style="margin-top:6px;">
-          Your role: <b>${esc(MY_CREDS.role || "Not set")}</b>
+    function renderNotesBox(notes) {
+      const n = (notes || "").trim();
+      if (!n) return "";
+      return `
+        <div class="noteBox">
+          <div class="noteTitle">Notes</div>
+          <div>${esc(n).replace(/\n/g,"<br>")}</div>
         </div>
-      </div>
-      <span class="pill blue">${IS_ADMIN ? "Admin" : "Employee"}</span>
-    </div>
+      `;
+    }
 
-    ${IS_ADMIN ? `
-    <div class="card sectionCard">
-      <h4>Post Shift</h4>
+    function renderEventMapLink(url) {
+      const u = (url || "").trim();
+      if (!u) return "";
+      return `<a href="${esc(u)}" target="_blank" rel="noopener">🗺️ Event Map</a>`;
+    }
+    function renderDirectionsLink(url) {
+      const u = (url || "").trim();
+      if (!u) return "";
+      return `<a href="${esc(u)}" target="_blank" rel="noopener">🧭 Directions</a>`;
+    }
+    function renderLinkRow(mapUrl, directionsUrl) {
+      const a = [];
+      const map = renderEventMapLink(mapUrl);
+      const dir = renderDirectionsLink(directionsUrl);
+      if (map) a.push(map);
+      if (dir) a.push(dir);
+      if (!a.length) return "";
+      return `<div class="linkRow">${a.join("")}</div>`;
+    }
 
-      <div class="grid5">
-        <div>
-          <label>Title</label>
-          <input id="stitle" placeholder="Title" style="width:100%;" />
+    function reqPills(s) {
+      const pills = [];
+      if (s?.required_role) pills.push(`<span class="pill warn">Req: ${esc(s.required_role)}</span>`);
+      return pills.length ? `<div class="row" style="margin-top:10px;">${pills.join("")}</div>` : "";
+    }
+
+    function canUserClaimShift(s) {
+      if (s?.required_role) {
+        const need = String(s.required_role).trim().toLowerCase();
+        const have = String(MY_CREDS.role || "").trim().toLowerCase();
+        if (!have || have !== need) return { ok:false, reason:`Requires ${s.required_role}` };
+      }
+      return { ok:true, reason:"" };
+    }
+
+    function buildShiftShareText(s) {
+      const parts = [];
+      parts.push(`First Line EMS Shift: ${s.title || "Shift"}`);
+      parts.push(`When: ${fmtDT(s.start_time)}${s.end_time ? " – " + fmtDT(s.end_time) : ""}`);
+      if (s.shift_where) parts.push(`Where: ${s.shift_where}`);
+      if (s.required_role) parts.push(`Requirements: Role: ${s.required_role}`);
+      if (s.google_map_url) parts.push(`Event Map: ${s.google_map_url}`);
+      if (s.directions_url) parts.push(`Directions: ${s.directions_url}`);
+      const n = (s.notes || "").trim();
+      if (n) { parts.push(""); parts.push("Notes:"); parts.push(n); }
+      parts.push(""); parts.push("Claim in the portal if you can cover.");
+      return parts.join("\n");
+    }
+
+    async function copyTextToClipboard(text) {
+      try {
+        await navigator.clipboard.writeText(text);
+        return true;
+      } catch {
+        try {
+          const ta = document.createElement("textarea");
+          ta.value = text;
+          ta.style.position = "fixed";
+          ta.style.left = "-9999px";
+          document.body.appendChild(ta);
+          ta.focus();
+          ta.select();
+          document.execCommand("copy");
+          document.body.removeChild(ta);
+          return true;
+        } catch {
+          return false;
+        }
+      }
+    }
+
+    window.copyShiftShare = async (shiftObjJson) => {
+      if (!IS_ADMIN) return alert("Admins only.");
+      const s = JSON.parse(shiftObjJson);
+      const txt = buildShiftShareText(s);
+      const ok = await copyTextToClipboard(txt);
+      alert(ok ? "Copied shift message ✅" : "Copy failed — browser blocked clipboard access.");
+    };
+
+    // --- Auth wiring ---
+    loginBtn.onclick = async () => {
+      loginError.textContent = "";
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: email.value,
+        password: password.value
+      });
+      if (error) return loginError.textContent = error.message;
+      await showPortal(data.user);
+    };
+
+    logoutBtn.onclick = async () => {
+      await supabase.auth.signOut();
+      location.reload();
+    };
+
+    async function showPortal(user) {
+      CURRENT_USER = user;
+      IS_ADMIN = await checkAdmin(user.id);
+      MY_CREDS = await loadMyCreds(user.id);
+
+      login.classList.add("hidden");
+      portal.classList.remove("hidden");
+      userEmail.textContent = user.email;
+
+      apprBtn.style.display = IS_ADMIN ? "inline-block" : "none";
+      if (typeof usersBtn !== "undefined") usersBtn.style.display = IS_ADMIN ? "inline-block" : "none";
+
+      await showSchedule();
+    }
+
+    // --- Data helpers ---
+    async function getApprovedCountsForShiftIds(shiftIds) {
+      const map = {};
+      shiftIds.forEach(id => map[id] = 0);
+      if (!shiftIds.length) return map;
+
+      const { data, error } = await supabase
+        .from("shift_claims")
+        .select("shift_id,status")
+        .in("shift_id", shiftIds)
+        .eq("status", "approved");
+
+      if (error) return map;
+
+      (data || []).forEach(r => {
+        map[r.shift_id] = (map[r.shift_id] || 0) + 1;
+      });
+      return map;
+    }
+
+    async function getMyClaimStatusMapForShiftIds(shiftIds) {
+      const map = {};
+      if (!shiftIds.length) return map;
+
+      const { data, error } = await supabase
+        .from("shift_claims")
+        .select("shift_id,status")
+        .in("shift_id", shiftIds)
+        .eq("user_id", CURRENT_USER.id)
+        .in("status", ["pending","approved","removal_requested"]);
+
+      if (error) return map;
+      (data || []).forEach(r => { map[r.shift_id] = r.status; });
+      return map;
+    }
+
+    function slotsText(approvedCount, crewSize) {
+      const cs = Math.max(1, Number(crewSize || 1));
+      const ac = Number(approvedCount || 0);
+      return `${ac}/${cs} filled`;
+    }
+
+    // --- Scheduling ---
+    async function showSchedule() {
+      setActiveNav(schedBtn);
+
+      content.innerHTML = `
+        <div class="row" style="justify-content:space-between; align-items:flex-end;">
+          <div>
+            <h3>Scheduling</h3>
+            <div class="small">Claim shifts for approval. Approved shifts appear in “My Requests / Shifts”.</div>
+            <div class="small" style="margin-top:6px;">
+              Your role: <b>${esc(MY_CREDS.role || "Not set")}</b>
+            </div>
+          </div>
+          <span class="pill blue">${IS_ADMIN ? "Admin" : "Employee"}</span>
         </div>
-        <div>
-          <label>Start</label>
-          <input id="sstart" type="datetime-local" style="width:100%;" />
-        </div>
-        <div>
-          <label>End</label>
-          <input id="send" type="datetime-local" style="width:100%;" />
-        </div>
-        <div>
-          <label>Where</label>
-          <input id="swhere" placeholder="Where" style="width:100%;" />
-        </div>
-        <div>
-          <label>Crew Size</label>
-          <input id="screw" type="number" min="1" value="1" style="width:100%;" />
-        </div>
-      </div>
 
-      <div class="row" style="margin-top:10px;">
-        <div style="flex:1; min-width:240px;">
-          <label>Required Role (optional)</label>
-          <select id="srole" style="width:100%;">
-            <option value="">None</option>
-            <option value="EMT">EMT</option>
-            <option value="EMR">EMR</option>
-            <option value="Supervisor">Supervisor</option>
-          </select>
-        </div>
-      </div>
+        ${IS_ADMIN ? `
+        <div class="card sectionCard">
+          <h4>Post Shift</h4>
 
-      <label>Event Map Link (optional)</label>
-      <input id="smap" placeholder="https://www.google.com/maps/d/..." style="width:100%;" />
+          <div class="grid5">
+            <div>
+              <label>Title</label>
+              <input id="stitle" placeholder="Title" style="width:100%;" />
+            </div>
+            <div>
+              <label>Start</label>
+              <input id="sstart" type="datetime-local" style="width:100%;" />
+            </div>
+            <div>
+              <label>End</label>
+              <input id="send" type="datetime-local" style="width:100%;" />
+            </div>
+            <div>
+              <label>Where</label>
+              <input id="swhere" placeholder="Where" style="width:100%;" />
+            </div>
+            <div>
+              <label>Crew Size</label>
+              <input id="screw" type="number" min="1" value="1" style="width:100%;" />
+            </div>
+          </div>
 
-      <label>Directions Link (optional)</label>
-      <input id="sdir" placeholder="Paste a Directions URL (Google/Apple/Waze)" style="width:100%;" />
+          <div class="row" style="margin-top:10px;">
+            <div style="flex:1; min-width:240px;">
+              <label>Required Role (optional)</label>
+              <select id="srole" style="width:100%;">
+                <option value="">None</option>
+                <option value="EMT">EMT</option>
+                <option value="EMR">EMR</option>
+                <option value="Supervisor">Supervisor</option>
+              </select>
+            </div>
+          </div>
 
-      <label>Shift Notes / Instructions</label>
-      <textarea id="snotes" placeholder="Example: Meet at main gate 30 mins early. Uniform: Class B polo. Call supervisor if late."></textarea>
+          <label>Event Map Link (optional)</label>
+          <input id="smap" placeholder="https://www.google.com/maps/d/..." style="width:100%;" />
 
-      <div class="row" style="margin-top:12px;">
-        <button id="postBtn">Post</button>
-        <div class="small">Crew size = how many employees can be approved for this shift.</div>
-      </div>
-      <div id="perr" class="error"></div>
-    </div>` : ``}
+          <label>Directions Link (optional)</label>
+          <input id="sdir" placeholder="Paste a Directions URL (Google/Apple/Waze)" style="width:100%;" />
 
-    <div id="list" style="margin-top:14px; display:grid; gap:12px;"></div>
-  `;
+          <label>Shift Notes / Instructions</label>
+          <textarea id="snotes" placeholder="Example: Meet at main gate 30 mins early. Uniform: Class B polo. Call supervisor if late."></textarea>
 
-  if (IS_ADMIN) {
-    postBtn.onclick = async () => {
-      perr.textContent = "";
+          <div class="row" style="margin-top:12px;">
+            <button id="postBtn">Post</button>
+            <div class="small">Crew size = how many employees can be approved for this shift.</div>
+          </div>
+          <div id="perr" class="error"></div>
+        </div>` : ``}
 
-      const title = stitle.value.trim();
-      const where = swhere.value.trim();
-      const startVal = sstart.value;
-      const endVal = send.value;
-      const crew = Math.max(1, parseInt(screw.value || "1", 10));
-      const notes = (snotes.value || "").trim();
-      const mapUrl = (smap.value || "").trim();
-      const dirUrl = (sdir.value || "").trim();
-      const requiredRole = (srole.value || "").trim();
+        <div id="list" style="margin-top:14px; display:grid; gap:12px;"></div>
+      `;
 
-      if (!title || !startVal || !endVal) {
-        perr.textContent = "Enter a title, start, and end time.";
+      if (IS_ADMIN) {
+        postBtn.onclick = async () => {
+          perr.textContent = "";
+
+          const title = stitle.value.trim();
+          const where = swhere.value.trim();
+          const startVal = sstart.value;
+          const endVal = send.value;
+          const crew = Math.max(1, parseInt(screw.value || "1", 10));
+          const notes = (snotes.value || "").trim();
+          const mapUrl = (smap.value || "").trim();
+          const dirUrl = (sdir.value || "").trim();
+          const requiredRole = (srole.value || "").trim();
+
+          if (!title || !startVal || !endVal) {
+            perr.textContent = "Enter a title, start, and end time.";
+            return;
+          }
+
+          const { error } = await supabase.from("shifts").insert({
+            title,
+            start_time: startVal,
+            end_time: endVal,
+            shift_where: where,
+            crew_size: crew,
+            notes,
+            google_map_url: mapUrl || null,
+            directions_url: dirUrl || null,
+            required_role: requiredRole || null,
+            created_by: CURRENT_USER.id
+          });
+
+          if (error) { perr.textContent = error.message; return; }
+
+          stitle.value = "";
+          sstart.value = "";
+          send.value = "";
+          swhere.value = "";
+          screw.value = "1";
+          snotes.value = "";
+          smap.value = "";
+          sdir.value = "";
+          srole.value = "";
+
+          await loadShifts();
+        };
+      }
+
+      await loadShifts();
+    }
+
+    async function loadShifts() {
+      const { data, error } = await supabase
+        .from("shifts")
+        .select("*")
+        .order("start_time", { ascending: true });
+
+      if (error) {
+        content.innerHTML += `<div class="error">${esc(error.message)}</div>`;
         return;
       }
 
-      const { error } = await supabase.from("shifts").insert({
-        title,
-        start_time: startVal,
-        end_time: endVal,
-        shift_where: where,
-        crew_size: crew,
-        notes,
-        google_map_url: mapUrl || null,
-        directions_url: dirUrl || null,
-        required_role: requiredRole || null,
-        created_by: CURRENT_USER.id
-      });
-
-      if (error) { perr.textContent = error.message; return; }
-
-      stitle.value = "";
-      sstart.value = "";
-      send.value = "";
-      swhere.value = "";
-      screw.value = "1";
-      snotes.value = "";
-      smap.value = "";
-      sdir.value = "";
-      srole.value = "";
-
-      await loadShifts();
-    };
-  }
-
-  await loadShifts();
-}
-
-async function loadShifts() {
-  const { data, error } = await supabase
-    .from("shifts")
-    .select("*")
-    .order("start_time", { ascending: true });
-
-  if (error) {
-    content.innerHTML += `<div class="error">${esc(error.message)}</div>`;
-    return;
-  }
-
-  const shifts = data || [];
-  const shiftIds = shifts.map(s => s.id);
-
-  const approvedCounts = await getApprovedCountsForShiftIds(shiftIds);
-  const myStatus = await getMyClaimStatusMapForShiftIds(shiftIds);
-
-  list.innerHTML = shifts.map(s => {
-    const cs = Math.max(1, Number(s.crew_size || 1));
-    const ac = Number(approvedCounts[s.id] || 0);
-    const full = ac >= cs;
-    const mine = myStatus[s.id];
-    const gate = canUserClaimShift(s);
-
-    let claimBtnHtml = "";
-    if (full) claimBtnHtml = `<span class="pill">Filled</span>`;
-    else if (mine === "pending") claimBtnHtml = `<span class="pill blue">Pending approval</span>`;
-    else if (mine === "approved") claimBtnHtml = `<span class="pill ok">You’re approved</span>`;
-    else if (mine === "removal_requested") claimBtnHtml = `<span class="pill">Removal requested</span>`;
-    else if (!gate.ok) claimBtnHtml = `<button disabled title="${esc(gate.reason)}">Claim</button><div class="small" style="margin-top:6px;">${esc(gate.reason)}</div>`;
-    else claimBtnHtml = `<button onclick="claimShift('${s.id}')">Claim</button>`;
-
-    const linkRow = renderLinkRow(s.google_map_url, s.directions_url);
-
-    const adminBtns = IS_ADMIN ? `
-      <div class="row" style="margin-top:10px;">
-        <button class="secondary" onclick="editShift('${s.id}')">Edit</button>
-        <button class="secondary" onclick="manageShift('${s.id}')">Manage</button>
-        <button class="secondary" onclick="copyShiftShare('${esc(JSON.stringify({
-          title: s.title,
-          start_time: s.start_time,
-          end_time: s.end_time,
-          shift_where: s.shift_where,
-          notes: s.notes,
-          google_map_url: s.google_map_url,
-          directions_url: s.directions_url,
-          required_role: s.required_role
-        })).replace(/"/g, "&quot;")}')">Copy Share</button>
-        <button class="danger" onclick="deleteShift('${s.id}')">Delete</button>
-      </div>
-      <div class="small">Copy Share copies a text message you can paste to staff.</div>
-    ` : ``;
-
-    return `
-      <div class="card">
-        <div class="row" style="justify-content:space-between; align-items:flex-start;">
-          <div style="min-width:240px;">
-            <div style="font-weight:1000; font-size:16px;">${esc(s.title)}</div>
-            <div class="small" style="margin-top:6px;">
-              🕒 ${fmtDT(s.start_time)}${s.end_time ? ` – ${fmtDT(s.end_time)}` : ""}
-            </div>
-            ${s.shift_where ? `<div style="margin-top:8px;"><span class="pill">${esc(s.shift_where)}</span></div>` : ``}
-            <div style="margin-top:8px;">
-              <span class="pill" style="margin-right:8px;">${slotsText(ac, cs)}</span>
-              ${full ? `<span class="pill">Full</span>` : `<span class="pill ok">Open</span>`}
-            </div>
-            ${reqPills(s)}
-          </div>
-
-          <div style="text-align:right;">
-            ${claimBtnHtml}
-          </div>
-        </div>
-
-        ${linkRow}
-        ${renderNotesBox(s.notes)}
-        ${adminBtns}
-      </div>
-    `;
-  }).join("") || `<div class="pill" style="margin-top:12px;">No shifts posted yet</div>`;
-}
-
-// ===== Admin: Edit Shift =====
-window.editShift = async (shiftId) => {
-  if (!IS_ADMIN) return alert("Admins only.");
-
-  const { data: shift, error: sErr } = await supabase
-    .from("shifts")
-    .select("*")
-    .eq("id", shiftId)
-    .single();
-  if (sErr) return alert(sErr.message);
-
-  const { data: appr, error: aErr } = await supabase
-    .from("shift_claims")
-    .select("id")
-    .eq("shift_id", shiftId)
-    .eq("status", "approved");
-  if (aErr) return alert(aErr.message);
-
-  const approvedCount = (appr || []).length;
-
-  content.innerHTML = `
-    <div class="row" style="justify-content:space-between;">
-      <div>
-        <h3 style="margin:0;">Edit Shift</h3>
-        <div class="small">Update details. Crew size can’t go below approved count.</div>
-      </div>
-      <div class="row">
-        <button class="secondary" onclick="showSchedule()">Back</button>
-        <button class="danger" onclick="deleteShift('${shiftId}')">Delete</button>
-      </div>
-    </div>
-
-    <div class="card sectionCard">
-      <div class="pill blue">Approved: ${approvedCount}</div>
-
-      <label>Title</label>
-      <input id="etitle" style="width:100%;" />
-
-      <div class="row" style="margin-top:10px;">
-        <div style="flex:1; min-width:200px;">
-          <label>Start</label>
-          <input id="estart" type="datetime-local" style="width:100%;" />
-        </div>
-        <div style="flex:1; min-width:200px;">
-          <label>End</label>
-          <input id="eend" type="datetime-local" style="width:100%;" />
-        </div>
-      </div>
-
-      <label>Where</label>
-      <input id="ewhere" style="width:100%;" />
-
-      <label>Crew Size</label>
-      <input id="ecrew" type="number" min="1" style="width:160px;" />
-      <div class="small">Crew size cannot be less than approved count (${approvedCount}).</div>
-
-      <div class="row" style="margin-top:10px;">
-        <div style="flex:1; min-width:240px;">
-          <label>Required Role (optional)</label>
-          <select id="erole" style="width:100%;">
-            <option value="">None</option>
-            <option value="EMT">EMT</option>
-            <option value="EMR">EMR</option>
-            <option value="Supervisor">Supervisor</option>
-          </select>
-        </div>
-      </div>
-
-      <label>Event Map Link (optional)</label>
-      <input id="emap" placeholder="https://www.google.com/maps/d/..." style="width:100%;" />
-
-      <label>Directions Link (optional)</label>
-      <input id="edir" placeholder="Paste a Directions URL (Google/Apple/Waze)" style="width:100%;" />
-
-      <label>Notes / Instructions</label>
-      <textarea id="enotes"></textarea>
-
-      <button id="saveShiftBtn" style="margin-top:12px;">Save Changes</button>
-      <div id="eerr" class="error"></div>
-    </div>
-  `;
-
-  etitle.value = shift.title || "";
-  estart.value = toLocalInputValue(shift.start_time);
-  eend.value = toLocalInputValue(shift.end_time);
-  ewhere.value = shift.shift_where || "";
-  ecrew.value = String(Math.max(1, Number(shift.crew_size || 1)));
-  enotes.value = shift.notes || "";
-  emap.value = shift.google_map_url || "";
-  edir.value = shift.directions_url || "";
-  erole.value = shift.required_role || "";
-
-  saveShiftBtn.onclick = async () => {
-    eerr.textContent = "";
-
-    const title = etitle.value.trim();
-    const startVal = estart.value;
-    const endVal = eend.value;
-    const where = ewhere.value.trim();
-    const notes = enotes.value.trim();
-    const crew = Math.max(1, parseInt(ecrew.value || "1", 10));
-    const mapUrl = (emap.value || "").trim();
-    const dirUrl = (edir.value || "").trim();
-    const requiredRole = (erole.value || "").trim();
-
-    if (!title || !startVal || !endVal) { eerr.textContent = "Title, start, and end are required."; return; }
-    if (crew < approvedCount) { eerr.textContent = `Crew size cannot be less than approved count (${approvedCount}).`; return; }
-
-    const { data: updated, error } = await supabase
-      .from("shifts")
-      .update({
-        title,
-        start_time: startVal,
-        end_time: endVal,
-        shift_where: where,
-        crew_size: crew,
-        notes,
-        google_map_url: mapUrl || null,
-        directions_url: dirUrl || null,
-        required_role: requiredRole || null
-      })
-      .eq("id", shiftId)
-      .select("id");
-
-    if (error) { eerr.textContent = error.message; return; }
-    if (!updated || updated.length === 0) { eerr.textContent = "Update blocked (no rows updated). This is usually an RLS/policy issue."; return; }
-
-    alert("Shift updated.");
-    await showSchedule();
-  };
-};
-
-// ===== Claim / Cancel / Removal Request =====
-window.claimShift = async (shiftId) => {
-  const { data: shift, error: sErr } = await supabase
-    .from("shifts")
-    .select("id,crew_size,required_role")
-    .eq("id", shiftId)
-    .single();
-  if (sErr) return alert(sErr.message);
-
-  const gate = canUserClaimShift(shift);
-  if (!gate.ok) return alert("Cannot claim: " + gate.reason);
-
-  const { data: mine, error: mineErr } = await supabase
-    .from("shift_claims")
-    .select("id,status")
-    .eq("shift_id", shiftId)
-    .eq("user_id", CURRENT_USER.id)
-    .in("status", ["pending", "approved", "removal_requested"])
-    .limit(1);
-
-  if (mineErr) return alert(mineErr.message);
-  if (mine && mine.length) return alert("You already have a request for this shift.");
-
-  const { data: approvedRows, error: aErr } = await supabase
-    .from("shift_claims")
-    .select("id")
-    .eq("shift_id", shiftId)
-    .eq("status", "approved");
-  if (aErr) return alert(aErr.message);
-
-  const cs = Math.max(1, Number(shift.crew_size || 1));
-  const ac = (approvedRows || []).length;
-  if (ac >= cs) return alert("This shift is already filled.");
-
-  const { error } = await supabase.from("shift_claims").insert({
-    shift_id: shiftId,
-    user_id: CURRENT_USER.id,
-    user_email: CURRENT_USER.email,
-    status: "pending"
-  });
-
-  if (error) return alert(error.message);
-
-  alert("Claim sent for approval.");
-  await loadShifts();
-};
-
-window.cancelMyPending = async (claimId) => {
-  const { error } = await supabase
-    .from("shift_claims")
-    .update({ status: "canceled" })
-    .eq("id", claimId)
-    .eq("user_id", CURRENT_USER.id);
-
-  if (error) return alert(error.message);
-  alert("Request canceled.");
-  await showMyRequests();
-};
-
-window.requestRemoval = async (claimId) => {
-  const { error } = await supabase
-    .from("shift_claims")
-    .update({ status: "removal_requested" })
-    .eq("id", claimId)
-    .eq("user_id", CURRENT_USER.id);
-
-  if (error) return alert(error.message);
-  alert("Removal request sent to admin.");
-  await showMyRequests();
-};
-
-// ===== My Requests / My Shifts (combined) =====
-async function showMyRequests() {
-  setActiveNav(myBtn);
-
-  const { data, error } = await supabase
-    .from("shift_claims")
-    .select("id,status,created_at,shift_id,shifts(title,start_time,end_time,shift_where,crew_size,notes,google_map_url,directions_url,required_role)")
-    .eq("user_id", CURRENT_USER.id)
-    .in("status", ["pending", "approved", "removal_requested"])
-    .order("created_at", { ascending: false });
-
-  if (error) { content.innerHTML = `<div class="error">${esc(error.message)}</div>`; return; }
-
-  const rows = data || [];
-  const pending = rows.filter(r => r.status === "pending");
-  const approved = rows.filter(r => r.status === "approved");
-  const removal = rows.filter(r => r.status === "removal_requested");
-
-  const renderShiftCard = (r, badgeHtml, actionHtml = "") => `
-    <div class="card sectionCard">
-      <div style="font-weight:1000; font-size:16px;">${esc(r.shifts?.title || "Shift")}</div>
-      <div class="small" style="margin-top:6px;">🕒 ${fmtDT(r.shifts?.start_time)}${r.shifts?.end_time ? ` – ${fmtDT(r.shifts.end_time)}` : ""}</div>
-      ${r.shifts?.shift_where ? `<div style="margin-top:8px;"><span class="pill">${esc(r.shifts.shift_where)}</span></div>` : ``}
-      ${reqPills(r.shifts || {})}
-      <div style="margin-top:10px;">${badgeHtml}${actionHtml}</div>
-      ${renderLinkRow(r.shifts?.google_map_url, r.shifts?.directions_url)}
-      ${renderNotesBox(r.shifts?.notes)}
-    </div>
-  `;
-
-  content.innerHTML = `
-    <h3>My Requests / Shifts</h3>
-
-    <h4>Pending Requests</h4>
-    ${pending.length ? pending.map(r => renderShiftCard(
-      r,
-      `<span class="pill blue">Pending</span>`,
-      `<button class="secondary" style="margin-left:10px;" onclick="cancelMyPending('${r.id}')">Cancel Request</button>`
-    )).join("") : `<div class="pill">No pending requests</div>`}
-
-    <hr>
-
-    <h4>Approved Shifts</h4>
-    ${approved.length ? approved.map(r => renderShiftCard(
-      r,
-      `<span class="pill ok">Approved ✅</span>`,
-      `<button class="secondary" style="margin-left:10px;" onclick="requestRemoval('${r.id}')">Request Removal</button>
-       <div class="small" style="margin-top:8px;">Removal requires admin action.</div>`
-    )).join("") : `<div class="pill">No approved shifts yet</div>`}
-
-    <hr>
-
-    <h4>Removal Requests</h4>
-    ${removal.length ? removal.map(r => renderShiftCard(
-      r,
-      `<span class="pill">Removal requested</span>`
-    )).join("") : `<div class="pill">No removal requests</div>`}
-  `;
-}
-myBtn.onclick = showMyRequests;
-
-// ===== Approvals (admin) =====
-apprBtn.onclick = async () => {
-  if (!IS_ADMIN) return alert("Admins only.");
-  setActiveNav(apprBtn);
-
-  const { data: pending, error: pErr } = await supabase
-    .from("shift_claims")
-    .select("id,user_id,user_email,shift_id,status,created_at,shifts(id,title,start_time,end_time,shift_where,crew_size,notes,google_map_url,directions_url,required_role)")
-    .eq("status", "pending")
-    .order("created_at", { ascending: false });
-
-  if (pErr) return content.innerHTML = `<div class="error">${esc(pErr.message)}</div>`;
-
-  const { data: removal, error: rErr } = await supabase
-    .from("shift_claims")
-    .select("id,user_id,user_email,shift_id,status,created_at,shifts(id,title,start_time,end_time,shift_where,crew_size,notes,google_map_url,directions_url,required_role)")
-    .eq("status", "removal_requested")
-    .order("created_at", { ascending: false });
-
-  if (rErr) return content.innerHTML = `<div class="error">${esc(rErr.message)}</div>`;
-
-  const shiftIds = Array.from(new Set([...(pending || []).map(x => x.shift_id), ...(removal || []).map(x => x.shift_id)]));
-  const approvedCounts = await getApprovedCountsForShiftIds(shiftIds);
-
-  content.innerHTML = `
-    <h3>Approvals</h3>
-
-    <h4>Pending Claims</h4>
-    ${(pending || []).length ? (pending || []).map(c => {
-      const s = c.shifts || {};
-      const cs = Math.max(1, Number(s.crew_size || 1));
-      const ac = Number(approvedCounts[c.shift_id] || 0);
-      const full = ac >= cs;
-
-      return `
-        <div class="card sectionCard">
-          <div style="font-weight:1000; font-size:16px;">${esc(s.title || "Shift")}</div>
-          <div class="small" style="margin-top:6px;">🕒 ${fmtDT(s.start_time)}${s.end_time ? ` – ${fmtDT(s.end_time)}` : ""}</div>
-          ${s.shift_where ? `<div style="margin-top:8px;"><span class="pill">${esc(s.shift_where)}</span></div>` : ``}
-          ${reqPills(s)}
-          <div style="margin-top:10px;">
-            <span class="pill">${slotsText(ac, cs)}</span>
-            ${full ? `<span class="pill" style="margin-left:8px;">Full</span>` : `<span class="pill ok" style="margin-left:8px;">Open</span>`}
-          </div>
-          ${renderLinkRow(s.google_map_url, s.directions_url)}
-          ${renderNotesBox(s.notes)}
-          <div style="margin-top:10px;">Claimed by: <b>${esc(c.user_email || c.user_id)}</b></div>
+      const shifts = data || [];
+      const shiftIds = shifts.map(s => s.id);
+
+      const approvedCounts = await getApprovedCountsForShiftIds(shiftIds);
+      const myStatus = await getMyClaimStatusMapForShiftIds(shiftIds);
+
+      list.innerHTML = shifts.map(s => {
+        const cs = Math.max(1, Number(s.crew_size || 1));
+        const ac = Number(approvedCounts[s.id] || 0);
+        const full = ac >= cs;
+
+        const mine = myStatus[s.id];
+        const gate = canUserClaimShift(s);
+
+        let claimBtnHtml = "";
+        if (full) claimBtnHtml = `<span class="pill">Filled</span>`;
+        else if (mine === "pending") claimBtnHtml = `<span class="pill blue">Pending approval</span>`;
+        else if (mine === "approved") claimBtnHtml = `<span class="pill ok">You’re approved</span>`;
+        else if (mine === "removal_requested") claimBtnHtml = `<span class="pill">Removal requested</span>`;
+        else if (!gate.ok) claimBtnHtml = `<button disabled title="${esc(gate.reason)}">Claim</button><div class="small" style="margin-top:6px;">${esc(gate.reason)}</div>`;
+        else claimBtnHtml = `<button onclick="claimShift('${s.id}')">Claim</button>`;
+
+        const adminBtns = IS_ADMIN ? `
           <div class="row" style="margin-top:10px;">
-            <button ${full ? "disabled" : ""} onclick="approveClaim('${c.id}')">${full ? "Full" : "Approve"}</button>
-            <button class="secondary" onclick="denyClaim('${c.id}')">Deny</button>
+            <button class="secondary" onclick="editShift('${s.id}')">Edit</button>
+            <button class="secondary" onclick="manageShift('${s.id}')">Manage</button>
+            <button class="secondary" onclick="copyShiftShare('${esc(JSON.stringify({
+              title: s.title,
+              start_time: s.start_time,
+              end_time: s.end_time,
+              shift_where: s.shift_where,
+              notes: s.notes,
+              google_map_url: s.google_map_url,
+              directions_url: s.directions_url,
+              required_role: s.required_role
+            })).replace(/"/g,"&quot;")}')">Copy Share</button>
+            <button class="danger" onclick="deleteShift('${s.id}')">Delete</button>
           </div>
-        </div>
-      `;
-    }).join("") : `<div class="pill">No pending claims</div>`}
-
-    <hr>
-
-    <h4>Removal Requests</h4>
-    ${(removal || []).length ? (removal || []).map(c => {
-      const s = c.shifts || {};
-      const cs = Math.max(1, Number(s.crew_size || 1));
-      const ac = Number(approvedCounts[c.shift_id] || 0);
-
-      return `
-        <div class="card sectionCard">
-          <div style="font-weight:1000; font-size:16px;">${esc(s.title || "Shift")}</div>
-          <div class="small" style="margin-top:6px;">🕒 ${fmtDT(s.start_time)}${s.end_time ? ` – ${fmtDT(s.end_time)}` : ""}</div>
-          ${s.shift_where ? `<div style="margin-top:8px;"><span class="pill">${esc(s.shift_where)}</span></div>` : ``}
-          ${reqPills(s)}
-          <div style="margin-top:10px;"><span class="pill">${slotsText(ac, cs)}</span></div>
-          ${renderLinkRow(s.google_map_url, s.directions_url)}
-          ${renderNotesBox(s.notes)}
-          <div style="margin-top:10px;">Employee: <b>${esc(c.user_email || c.user_id)}</b></div>
-          <div class="row" style="margin-top:10px;">
-            <button onclick="approveRemoval('${c.id}')">Approve Removal</button>
-            <button class="secondary" onclick="denyRemoval('${c.id}')">Deny Removal</button>
-          </div>
-        </div>
-      `;
-    }).join("") : `<div class="pill">No removal requests</div>`}
-  `;
-};
-
-window.approveClaim = async (claimId) => {
-  const { error } = await supabase.from("shift_claims").update({ status: "approved" }).eq("id", claimId);
-  if (error) return alert(error.message);
-  alert("Approved.");
-  apprBtn.onclick();
-};
-window.denyClaim = async (claimId) => {
-  const { error } = await supabase.from("shift_claims").update({ status: "denied" }).eq("id", claimId);
-  if (error) return alert(error.message);
-  alert("Denied.");
-  apprBtn.onclick();
-};
-window.approveRemoval = async (claimId) => {
-  const { error } = await supabase.from("shift_claims").update({ status: "removed" }).eq("id", claimId);
-  if (error) return alert(error.message);
-  alert("Removed from shift.");
-  apprBtn.onclick();
-};
-window.denyRemoval = async (claimId) => {
-  const { error } = await supabase.from("shift_claims").update({ status: "approved" }).eq("id", claimId);
-  if (error) return alert(error.message);
-  alert("Removal denied (kept approved).");
-  apprBtn.onclick();
-};
-
-// ===== Admin: Manage shift / Delete shift =====
-window.manageShift = async (shiftId) => {
-  if (!IS_ADMIN) return alert("Admins only.");
-
-  const { data: shift, error: sErr } = await supabase.from("shifts").select("*").eq("id", shiftId).single();
-  if (sErr) return alert(sErr.message);
-
-  const { data: approved, error: aErr } = await supabase
-    .from("shift_claims")
-    .select("id,user_id,user_email,status")
-    .eq("shift_id", shiftId)
-    .eq("status", "approved")
-    .order("created_at", { ascending: true });
-  if (aErr) return alert(aErr.message);
-
-  const cs = Math.max(1, Number(shift.crew_size || 1));
-  const ac = (approved || []).length;
-
-  content.innerHTML = `
-    <div class="row" style="justify-content:space-between;">
-      <div>
-        <h3 style="margin:0;">Manage Shift</h3>
-        <div class="small">Remove approved members to free slots.</div>
-      </div>
-      <div class="row">
-        <button class="secondary" onclick="showSchedule()">Back</button>
-        <button class="secondary" onclick="editShift('${shiftId}')">Edit</button>
-        <button class="danger" onclick="deleteShift('${shiftId}')">Delete Shift</button>
-      </div>
-    </div>
-
-    <div class="card sectionCard">
-      <div style="font-weight:1000; font-size:16px;">${esc(shift.title)}</div>
-      <div class="small" style="margin-top:6px;">🕒 ${fmtDT(shift.start_time)}${shift.end_time ? ` – ${fmtDT(shift.end_time)}` : ""}</div>
-      ${shift.shift_where ? `<div style="margin-top:8px;"><span class="pill">${esc(shift.shift_where)}</span></div>` : ``}
-      ${reqPills(shift)}
-      <div style="margin-top:10px;"><span class="pill">${slotsText(ac, cs)}</span></div>
-      ${renderLinkRow(shift.google_map_url, shift.directions_url)}
-      ${renderNotesBox(shift.notes)}
-    </div>
-
-    <h4 style="margin-top:12px;">Approved Members</h4>
-    ${(approved || []).length ? (approved || []).map(m => `
-      <div class="card sectionCard" style="box-shadow:none;">
-        <div style="font-weight:1000;">${esc(m.user_email || m.user_id)}</div>
-        <div class="row" style="margin-top:10px;">
-          <button class="danger" onclick="adminRemoveApproved('${m.id}')">Remove</button>
-        </div>
-      </div>
-    `).join("") : `<div class="pill">No approved members yet</div>`}
-  `;
-};
-
-window.adminRemoveApproved = async (claimId) => {
-  if (!IS_ADMIN) return alert("Admins only.");
-  const { error } = await supabase.from("shift_claims").update({ status: "removed" }).eq("id", claimId);
-  if (error) return alert(error.message);
-  alert("Removed.");
-  await showSchedule();
-};
-
-window.deleteShift = async (shiftId) => {
-  if (!IS_ADMIN) return alert("Admins only.");
-  if (!confirm("DELETE SHIFT?\n\nThis permanently removes the shift and all claims.\nThis cannot be undone.")) return;
-
-  const { error: e1 } = await supabase.from("shift_claims").delete().eq("shift_id", shiftId);
-  if (e1) return alert("Delete claims failed: " + e1.message);
-
-  const { data: deletedShift, error: e2 } = await supabase.from("shifts").delete().eq("id", shiftId).select("id");
-  if (e2) return alert("Delete shift failed: " + e2.message);
-
-  if (!deletedShift || deletedShift.length === 0) {
-    alert("Delete blocked (no rows deleted). This is almost always an RLS/policy issue.");
-    return;
-  }
-
-  alert("Shift deleted.");
-  await showSchedule();
-};
-
-// ===== Calendar (weekly) =====
-async function showCalendarWeek(weekOffset = 0) {
-  setActiveNav(calBtn);
-
-  const base = startOfWeek(new Date());
-  const weekStart = addDays(base, weekOffset * 7);
-  const weekEnd = addDays(weekStart, 7);
-
-  content.innerHTML = `
-    <div class="row" style="justify-content:space-between; margin-top:10px;">
-      <div>
-        <h3 style="margin:0;">Weekly Calendar</h3>
-        <div class="small">${fmtDay(weekStart)} – ${fmtDay(addDays(weekStart, 6))}</div>
-      </div>
-      <div class="row">
-        <button class="secondary" id="prevWeekBtn">◀ Prev</button>
-        <button class="secondary" id="thisWeekBtn">This Week</button>
-        <button class="secondary" id="nextWeekBtn">Next ▶</button>
-      </div>
-    </div>
-
-    <div id="calGrid" style="margin-top:12px; display:grid; grid-template-columns: repeat(7, 1fr); gap:10px;"></div>
-    <div id="calErr" class="error"></div>
-  `;
-
-  prevWeekBtn.onclick = () => showCalendarWeek(weekOffset - 1);
-  nextWeekBtn.onclick = () => showCalendarWeek(weekOffset + 1);
-  thisWeekBtn.onclick = () => showCalendarWeek(0);
-
-  const calGrid = document.getElementById("calGrid");
-  const calErr = document.getElementById("calErr");
-
-  const { data, error } = await supabase
-    .from("shifts")
-    .select("*")
-    .gte("start_time", weekStart.toISOString())
-    .lt("start_time", weekEnd.toISOString())
-    .order("start_time", { ascending: true });
-
-  if (error) { calErr.textContent = error.message; return; }
-
-  const shifts = data || [];
-  const shiftIds = shifts.map(s => s.id);
-  const approvedCounts = await getApprovedCountsForShiftIds(shiftIds);
-  const myStatus = await getMyClaimStatusMapForShiftIds(shiftIds);
-
-  const days = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
-
-  days.forEach((dayDate, i) => {
-    const col = document.createElement("div");
-    col.className = "card";
-    col.style.boxShadow = "none";
-    col.style.border = "1px solid var(--line)";
-    col.style.padding = "14px";
-
-    const dayStart = new Date(dayDate); dayStart.setHours(0, 0, 0, 0);
-    const dayEnd = new Date(dayDate); dayEnd.setHours(23, 59, 59, 999);
-
-    const dayShifts = shifts.filter(s => {
-      const st = new Date(s.start_time);
-      return st >= dayStart && st <= dayEnd;
-    });
-
-    col.innerHTML = `
-      <div style="font-weight:1000; margin-bottom:8px;">${fmtDay(dayDate)}</div>
-      <div id="day_${i}" style="display:grid; gap:8px;"></div>
-      ${dayShifts.length === 0 ? `<div class="pill" style="margin-top:8px;">No shifts</div>` : ``}
-    `;
-
-    calGrid.appendChild(col);
-
-    const dayWrap = col.querySelector(`#day_${i}`);
-    dayShifts.forEach(s => {
-      const st = new Date(s.start_time);
-      const en = s.end_time ? new Date(s.end_time) : null;
-
-      const cs = Math.max(1, Number(s.crew_size || 1));
-      const ac = Number(approvedCounts[s.id] || 0);
-      const full = ac >= cs;
-
-      const mine = myStatus[s.id];
-      const gate = canUserClaimShift(s);
-
-      let actionHtml = "";
-      if (full) actionHtml = `<span class="pill">Filled</span>`;
-      else if (mine === "pending") actionHtml = `<span class="pill blue">Pending</span>`;
-      else if (mine === "approved") actionHtml = `<span class="pill ok">Approved</span>`;
-      else if (mine === "removal_requested") actionHtml = `<span class="pill">Removal req.</span>`;
-      else if (!gate.ok) actionHtml = `<button disabled title="${esc(gate.reason)}">Claim</button>`;
-      else actionHtml = `<button onclick="claimShift('${s.id}')">Claim</button>`;
-
-      const block = document.createElement("div");
-      block.style.border = "1px solid var(--line)";
-      block.style.borderRadius = "12px";
-      block.style.padding = "10px";
-      block.style.background = "#fff";
-
-      block.innerHTML = `
-        <div style="font-weight:1000;">${esc(s.title)}</div>
-        <div class="small" style="margin-top:4px;">${fmtTime(st)}${en ? ` – ${fmtTime(en)}` : ``}</div>
-        ${s.shift_where ? `<div class="small" style="margin-top:2px;">${esc(s.shift_where)}</div>` : ``}
-        ${reqPills(s)}
-        <div style="margin-top:8px;">
-          <span class="pill">${slotsText(ac, cs)}</span>
-          <div style="margin-top:8px;">${actionHtml}</div>
-          ${!gate.ok && !full && !mine ? `<div class="small" style="margin-top:6px;">${esc(gate.reason)}</div>` : ``}
-        </div>
-        ${renderLinkRow(s.google_map_url, s.directions_url)}
-        ${renderNotesBox(s.notes)}
-      `;
-
-      dayWrap.appendChild(block);
-    });
-  });
-
-  if (window.innerWidth < 850) calGrid.style.gridTemplateColumns = "1fr";
-}
-
-// ===== Announcements =====
-annBtn.onclick = () => {
-  setActiveNav(annBtn);
-  content.innerHTML = `
-    <h3>Announcements</h3>
-    <div class="pill" style="margin-top:12px;">No announcements yet</div>
-  `;
-};
-
-// ===== Users (admin) =====
-async function callAdminUsers(payload) {
-  const { data: sessionData } = await supabase.auth.getSession();
-  const token = sessionData?.session?.access_token;
-  if (!token) throw new Error("Not logged in.");
-
-  const url = "https://lnevuelwsiewxdrmgckh.supabase.co/functions/v1/admin_users";
-
-  const res = await fetch(url, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": "Bearer " + token
-    },
-    body: JSON.stringify(payload)
-  });
-
-  const out = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(out?.error || "Request failed");
-  return out;
-}
-
-async function showUsers() {
-  if (!IS_ADMIN) return alert("Admins only.");
-  setActiveNav(usersBtn);
-
-  content.innerHTML = `
-    <div class="row" style="justify-content:space-between; align-items:flex-end;">
-      <div>
-        <h3>Users</h3>
-        <div class="small">Create users, set roles, reset passwords, and remove users.</div>
-      </div>
-      <span class="pill blue">Admin</span>
-    </div>
-
-    <div class="card sectionCard">
-      <h4>Create User</h4>
-      <div class="row">
-        <div style="flex:1; min-width:240px;">
-          <label>Email</label>
-          <input id="newUEmail" placeholder="name@email.com" style="width:100%;" />
-        </div>
-        <div style="flex:1; min-width:220px;">
-          <label>Temp Password</label>
-          <input id="newUPass" placeholder="Temporary password" style="width:100%;" />
-        </div>
-      </div>
-
-      <div class="row" style="margin-top:10px;">
-        <div style="flex:1; min-width:220px;">
-          <label>Role</label>
-          <select id="newURole" style="width:100%;">
-            <option value="">None</option>
-            <option value="EMT">EMT</option>
-            <option value="EMR">EMR</option>
-            <option value="Supervisor">Supervisor</option>
-          </select>
-        </div>
-
-        <div style="flex:1; min-width:220px;">
-          <label style="display:flex; gap:10px; align-items:center; margin-top:28px;">
-            <input id="newUAdmin" type="checkbox" style="width:18px; height:18px;" />
-            Admin
-          </label>
-        </div>
-      </div>
-
-      <div class="row" style="margin-top:12px;">
-        <button id="createUserBtn">Create</button>
-        <div id="usersErr" class="error"></div>
-      </div>
-    </div>
-
-    <div class="card sectionCard">
-      <div class="row" style="justify-content:space-between;">
-        <h4 style="margin:0;">All Users</h4>
-        <button class="secondary" id="refreshUsersBtn">Refresh</button>
-      </div>
-      <div id="usersList" style="margin-top:12px; display:grid; gap:12px;"></div>
-    </div>
-  `;
-
-  async function refresh() {
-    usersErr.textContent = "";
-    usersList.innerHTML = `<div class="pill">Loading...</div>`;
-
-    try {
-      const out = await callAdminUsers({ action: "list" });
-      const users = out?.users || [];
-
-      usersList.innerHTML = users.map(u => {
-        const r = u.roles || {};
-        const email = u.email || "";
-        const created = u.created_at ? new Date(u.created_at).toLocaleString() : "";
-        const last = u.last_sign_in_at ? new Date(u.last_sign_in_at).toLocaleString() : "—";
+          <div class="small">Copy Share copies a text message you can paste to staff.</div>
+        ` : ``;
 
         return `
-          <div class="card" style="box-shadow:none;">
-            <div style="font-weight:1000;">${esc(email)}</div>
-            <div class="small" style="margin-top:6px;">
-              Created: ${esc(created)} • Last sign-in: ${esc(last)}
-            </div>
-
-            <div class="row" style="margin-top:10px;">
-              <span class="pill ${r.is_admin ? "blue" : ""}">Admin: ${r.is_admin ? "Yes" : "No"}</span>
-              <span class="pill">Role: ${esc(r.role || "None")}</span>
-            </div>
-
-            <hr>
-
-            <div class="row">
-              <div style="min-width:200px;">
-                <label>Role</label>
-                <select id="role_${u.id}">
-                  <option value="">None</option>
-                  <option value="EMT">EMT</option>
-                  <option value="EMR">EMR</option>
-                  <option value="Supervisor">Supervisor</option>
-                </select>
+          <div class="card">
+            <div class="row" style="justify-content:space-between; align-items:flex-start;">
+              <div style="min-width:240px;">
+                <div style="font-weight:1000; font-size:16px;">${esc(s.title)}</div>
+                <div class="small" style="margin-top:6px;">
+                  🕒 ${fmtDT(s.start_time)}${s.end_time ? ` – ${fmtDT(s.end_time)}` : ""}
+                </div>
+                ${s.shift_where ? `<div style="margin-top:8px;"><span class="pill">${esc(s.shift_where)}</span></div>` : ``}
+                <div style="margin-top:8px;">
+                  <span class="pill" style="margin-right:8px;">${slotsText(ac, cs)}</span>
+                  ${full ? `<span class="pill">Full</span>` : `<span class="pill ok">Open</span>`}
+                </div>
+                ${reqPills(s)}
               </div>
 
-              <div style="min-width:160px;">
-                <label style="display:flex; gap:10px; align-items:center; margin-top:28px;">
-                  <input id="adm_${u.id}" type="checkbox" style="width:18px; height:18px;" />
-                  Admin
-                </label>
+              <div style="text-align:right;">
+                ${claimBtnHtml}
               </div>
             </div>
 
-            <div class="row" style="margin-top:12px;">
-              <button class="secondary" onclick="saveUserRoles('${u.id}')">Save</button>
-              <button class="secondary" onclick="resetUserPass('${u.id}')">Reset Password</button>
-              <button class="danger" onclick="deleteUser('${u.id}','${esc(email).replace(/'/g, "&#039;")}')">Delete</button>
-            </div>
-
-            <div class="small" style="margin-top:8px;">
-              Reset Password sets a new temp password you choose (you’ll be prompted).
-            </div>
+            ${renderLinkRow(s.google_map_url, s.directions_url)}
+            ${renderNotesBox(s.notes)}
+            ${adminBtns}
           </div>
         `;
-      }).join("") || `<div class="pill">No users found</div>`;
+      }).join("") || `<div class="pill" style="margin-top:12px;">No shifts posted yet</div>`;
+    }
 
-      users.forEach(u => {
-        const r = u.roles || {};
-        const roleSel = document.getElementById(`role_${u.id}`);
-        const adm = document.getElementById(`adm_${u.id}`);
-        if (roleSel) roleSel.value = r.role || "";
-        if (adm) adm.checked = !!r.is_admin;
+    // --- Claim / Cancel / Removal ---
+    window.claimShift = async (shiftId) => {
+      const { data: shift, error: sErr } = await supabase
+        .from("shifts")
+        .select("id,crew_size,required_role")
+        .eq("id", shiftId)
+        .single();
+      if (sErr) return alert(sErr.message);
+
+      const gate = canUserClaimShift(shift);
+      if (!gate.ok) return alert("Cannot claim: " + gate.reason);
+
+      const { data: mine, error: mineErr } = await supabase
+        .from("shift_claims")
+        .select("id,status")
+        .eq("shift_id", shiftId)
+        .eq("user_id", CURRENT_USER.id)
+        .in("status", ["pending","approved","removal_requested"])
+        .limit(1);
+
+      if (mineErr) return alert(mineErr.message);
+      if (mine && mine.length) return alert("You already have a request for this shift.");
+
+      const { data: approvedRows, error: aErr } = await supabase
+        .from("shift_claims")
+        .select("id")
+        .eq("shift_id", shiftId)
+        .eq("status", "approved");
+      if (aErr) return alert(aErr.message);
+
+      const cs = Math.max(1, Number(shift.crew_size || 1));
+      const ac = (approvedRows || []).length;
+      if (ac >= cs) return alert("This shift is already filled.");
+
+      const { error } = await supabase.from("shift_claims").insert({
+        shift_id: shiftId,
+        user_id: CURRENT_USER.id,
+        user_email: CURRENT_USER.email,
+        status: "pending"
       });
-    } catch (e) {
-      usersErr.textContent = e.message || String(e);
-      usersList.innerHTML = "";
+      if (error) return alert(error.message);
+
+      alert("Claim sent for approval.");
+      await loadShifts();
+    };
+
+    window.cancelMyPending = async (claimId) => {
+      const { error } = await supabase
+        .from("shift_claims")
+        .update({ status: "canceled" })
+        .eq("id", claimId)
+        .eq("user_id", CURRENT_USER.id);
+
+      if (error) return alert(error.message);
+      alert("Request canceled.");
+      await showMyRequests();
+    };
+
+    window.requestRemoval = async (claimId) => {
+      const { error } = await supabase
+        .from("shift_claims")
+        .update({ status: "removal_requested" })
+        .eq("id", claimId)
+        .eq("user_id", CURRENT_USER.id);
+
+      if (error) return alert(error.message);
+      alert("Removal request sent to admin.");
+      await showMyRequests();
+    };
+
+    // --- My Requests ---
+    async function showMyRequests() {
+      setActiveNav(myBtn);
+
+      const { data, error } = await supabase
+        .from("shift_claims")
+        .select("id,status,created_at,shift_id,shifts(title,start_time,end_time,shift_where,crew_size,notes,google_map_url,directions_url,required_role)")
+        .eq("user_id", CURRENT_USER.id)
+        .in("status", ["pending","approved","removal_requested"])
+        .order("created_at", { ascending: false });
+
+      if (error) { content.innerHTML = `<div class="error">${esc(error.message)}</div>`; return; }
+
+      const rows = data || [];
+      const pending = rows.filter(r => r.status === "pending");
+      const approved = rows.filter(r => r.status === "approved");
+      const removal = rows.filter(r => r.status === "removal_requested");
+
+      const renderShiftCard = (r, badgeHtml, actionHtml="") => `
+        <div class="card sectionCard">
+          <div style="font-weight:1000; font-size:16px;">${esc(r.shifts?.title || "Shift")}</div>
+          <div class="small" style="margin-top:6px;">🕒 ${fmtDT(r.shifts?.start_time)}${r.shifts?.end_time ? ` – ${fmtDT(r.shifts.end_time)}` : ""}</div>
+          ${r.shifts?.shift_where ? `<div style="margin-top:8px;"><span class="pill">${esc(r.shifts.shift_where)}</span></div>` : ``}
+          ${reqPills(r.shifts || {})}
+          <div style="margin-top:10px;">${badgeHtml}${actionHtml}</div>
+          ${renderLinkRow(r.shifts?.google_map_url, r.shifts?.directions_url)}
+          ${renderNotesBox(r.shifts?.notes)}
+        </div>
+      `;
+
+      content.innerHTML = `
+        <h3>My Requests / Shifts</h3>
+
+        <h4>Pending Requests</h4>
+        ${pending.length ? pending.map(r => renderShiftCard(
+          r,
+          `<span class="pill blue">Pending</span>`,
+          `<button class="secondary" style="margin-left:10px;" onclick="cancelMyPending('${r.id}')">Cancel Request</button>`
+        )).join("") : `<div class="pill">No pending requests</div>`}
+
+        <hr>
+
+        <h4>Approved Shifts</h4>
+        ${approved.length ? approved.map(r => renderShiftCard(
+          r,
+          `<span class="pill ok">Approved ✅</span>`,
+          `<button class="secondary" style="margin-left:10px;" onclick="requestRemoval('${r.id}')">Request Removal</button>
+           <div class="small" style="margin-top:8px;">Removal requires admin action.</div>`
+        )).join("") : `<div class="pill">No approved shifts yet</div>`}
+
+        <hr>
+
+        <h4>Removal Requests</h4>
+        ${removal.length ? removal.map(r => renderShiftCard(
+          r,
+          `<span class="pill">Removal requested</span>`
+        )).join("") : `<div class="pill">No removal requests</div>`}
+      `;
     }
+    myBtn.onclick = showMyRequests;
+
+    // --- Approvals (admin) ---
+    apprBtn.onclick = async () => {
+      if (!IS_ADMIN) return alert("Admins only.");
+      setActiveNav(apprBtn);
+
+      const { data: pending, error: pErr } = await supabase
+        .from("shift_claims")
+        .select("id,user_id,user_email,shift_id,status,created_at,shifts(id,title,start_time,end_time,shift_where,crew_size,notes,google_map_url,directions_url,required_role)")
+        .eq("status", "pending")
+        .order("created_at", { ascending: false });
+
+      if (pErr) return content.innerHTML = `<div class="error">${esc(pErr.message)}</div>`;
+
+      const { data: removal, error: rErr } = await supabase
+        .from("shift_claims")
+        .select("id,user_id,user_email,shift_id,status,created_at,shifts(id,title,start_time,end_time,shift_where,crew_size,notes,google_map_url,directions_url,required_role)")
+        .eq("status", "removal_requested")
+        .order("created_at", { ascending: false });
+
+      if (rErr) return content.innerHTML = `<div class="error">${esc(rErr.message)}</div>`;
+
+      const shiftIds = Array.from(new Set([...(pending||[]).map(x=>x.shift_id), ...(removal||[]).map(x=>x.shift_id)]));
+      const approvedCounts = await getApprovedCountsForShiftIds(shiftIds);
+
+      content.innerHTML = `
+        <h3>Approvals</h3>
+
+        <h4>Pending Claims</h4>
+        ${(pending||[]).length ? (pending||[]).map(c => {
+          const s = c.shifts || {};
+          const cs = Math.max(1, Number(s.crew_size || 1));
+          const ac = Number(approvedCounts[c.shift_id] || 0);
+          const full = ac >= cs;
+
+          return `
+            <div class="card sectionCard">
+              <div style="font-weight:1000; font-size:16px;">${esc(s.title || "Shift")}</div>
+              <div class="small" style="margin-top:6px;">🕒 ${fmtDT(s.start_time)}${s.end_time ? ` – ${fmtDT(s.end_time)}` : ""}</div>
+              ${s.shift_where ? `<div style="margin-top:8px;"><span class="pill">${esc(s.shift_where)}</span></div>` : ``}
+              ${reqPills(s)}
+              <div style="margin-top:10px;">
+                <span class="pill">${slotsText(ac, cs)}</span>
+                ${full ? `<span class="pill" style="margin-left:8px;">Full</span>` : `<span class="pill ok" style="margin-left:8px;">Open</span>`}
+              </div>
+              ${renderLinkRow(s.google_map_url, s.directions_url)}
+              ${renderNotesBox(s.notes)}
+              <div style="margin-top:10px;">Claimed by: <b>${esc(c.user_email || c.user_id)}</b></div>
+              <div class="row" style="margin-top:10px;">
+                <button ${full ? "disabled" : ""} onclick="approveClaim('${c.id}')">${full ? "Full" : "Approve"}</button>
+                <button class="secondary" onclick="denyClaim('${c.id}')">Deny</button>
+              </div>
+            </div>
+          `;
+        }).join("") : `<div class="pill">No pending claims</div>`}
+
+        <hr>
+
+        <h4>Removal Requests</h4>
+        ${(removal||[]).length ? (removal||[]).map(c => {
+          const s = c.shifts || {};
+          const cs = Math.max(1, Number(s.crew_size || 1));
+          const ac = Number(approvedCounts[c.shift_id] || 0);
+
+          return `
+            <div class="card sectionCard">
+              <div style="font-weight:1000; font-size:16px;">${esc(s.title || "Shift")}</div>
+              <div class="small" style="margin-top:6px;">🕒 ${fmtDT(s.start_time)}${s.end_time ? ` – ${fmtDT(s.end_time)}` : ""}</div>
+              ${s.shift_where ? `<div style="margin-top:8px;"><span class="pill">${esc(s.shift_where)}</span></div>` : ``}
+              ${reqPills(s)}
+              <div style="margin-top:10px;"><span class="pill">${slotsText(ac, cs)}</span></div>
+              ${renderLinkRow(s.google_map_url, s.directions_url)}
+              ${renderNotesBox(s.notes)}
+              <div style="margin-top:10px;">Employee: <b>${esc(c.user_email || c.user_id)}</b></div>
+              <div class="row" style="margin-top:10px;">
+                <button onclick="approveRemoval('${c.id}')">Approve Removal</button>
+                <button class="secondary" onclick="denyRemoval('${c.id}')">Deny Removal</button>
+              </div>
+            </div>
+          `;
+        }).join("") : `<div class="pill">No removal requests</div>`}
+      `;
+    };
+
+    window.approveClaim = async (claimId) => {
+      const { error } = await supabase.from("shift_claims").update({ status: "approved" }).eq("id", claimId);
+      if (error) return alert(error.message);
+      alert("Approved.");
+      apprBtn.onclick();
+    };
+    window.denyClaim = async (claimId) => {
+      const { error } = await supabase.from("shift_claims").update({ status: "denied" }).eq("id", claimId);
+      if (error) return alert(error.message);
+      alert("Denied.");
+      apprBtn.onclick();
+    };
+    window.approveRemoval = async (claimId) => {
+      const { error } = await supabase.from("shift_claims").update({ status: "removed" }).eq("id", claimId);
+      if (error) return alert(error.message);
+      alert("Removed from shift.");
+      apprBtn.onclick();
+    };
+    window.denyRemoval = async (claimId) => {
+      const { error } = await supabase.from("shift_claims").update({ status: "approved" }).eq("id", claimId);
+      if (error) return alert(error.message);
+      alert("Removal denied (kept approved).");
+      apprBtn.onclick();
+    };
+
+    // --- Admin: Edit shift ---
+    window.editShift = async (shiftId) => {
+      if (!IS_ADMIN) return alert("Admins only.");
+
+      const { data: shift, error: sErr } = await supabase.from("shifts").select("*").eq("id", shiftId).single();
+      if (sErr) return alert(sErr.message);
+
+      const { data: appr, error: aErr } = await supabase.from("shift_claims").select("id").eq("shift_id", shiftId).eq("status", "approved");
+      if (aErr) return alert(aErr.message);
+
+      const approvedCount = (appr || []).length;
+
+      content.innerHTML = `
+        <div class="row" style="justify-content:space-between;">
+          <div>
+            <h3 style="margin:0;">Edit Shift</h3>
+            <div class="small">Crew size can’t go below approved count.</div>
+          </div>
+          <div class="row">
+            <button class="secondary" onclick="showSchedule()">Back</button>
+            <button class="danger" onclick="deleteShift('${shiftId}')">Delete</button>
+          </div>
+        </div>
+
+        <div class="card sectionCard">
+          <div class="pill blue">Approved: ${approvedCount}</div>
+
+          <label>Title</label>
+          <input id="etitle" style="width:100%;" />
+
+          <div class="row" style="margin-top:10px;">
+            <div style="flex:1; min-width:200px;">
+              <label>Start</label>
+              <input id="estart" type="datetime-local" style="width:100%;" />
+            </div>
+            <div style="flex:1; min-width:200px;">
+              <label>End</label>
+              <input id="eend" type="datetime-local" style="width:100%;" />
+            </div>
+          </div>
+
+          <label>Where</label>
+          <input id="ewhere" style="width:100%;" />
+
+          <label>Crew Size</label>
+          <input id="ecrew" type="number" min="1" style="width:160px;" />
+          <div class="small">Crew size cannot be less than approved count (${approvedCount}).</div>
+
+          <div class="row" style="margin-top:10px;">
+            <div style="flex:1; min-width:240px;">
+              <label>Required Role (optional)</label>
+              <select id="erole" style="width:100%;">
+                <option value="">None</option>
+                <option value="EMT">EMT</option>
+                <option value="EMR">EMR</option>
+                <option value="Supervisor">Supervisor</option>
+              </select>
+            </div>
+          </div>
+
+          <label>Event Map Link (optional)</label>
+          <input id="emap" style="width:100%;" />
+
+          <label>Directions Link (optional)</label>
+          <input id="edir" style="width:100%;" />
+
+          <label>Notes / Instructions</label>
+          <textarea id="enotes"></textarea>
+
+          <button id="saveShiftBtn" style="margin-top:12px;">Save Changes</button>
+          <div id="eerr" class="error"></div>
+        </div>
+      `;
+
+      etitle.value = shift.title || "";
+      estart.value = toLocalInputValue(shift.start_time);
+      eend.value = toLocalInputValue(shift.end_time);
+      ewhere.value = shift.shift_where || "";
+      ecrew.value = String(Math.max(1, Number(shift.crew_size || 1)));
+      enotes.value = shift.notes || "";
+      emap.value = shift.google_map_url || "";
+      edir.value = shift.directions_url || "";
+      erole.value = shift.required_role || "";
+
+      saveShiftBtn.onclick = async () => {
+        eerr.textContent = "";
+
+        const title = etitle.value.trim();
+        const startVal = estart.value;
+        const endVal = eend.value;
+        const where = ewhere.value.trim();
+        const notes = enotes.value.trim();
+        const crew = Math.max(1, parseInt(ecrew.value || "1", 10));
+        const mapUrl = (emap.value || "").trim();
+        const dirUrl = (edir.value || "").trim();
+        const requiredRole = (erole.value || "").trim();
+
+        if (!title || !startVal || !endVal) return eerr.textContent = "Title, start, and end are required.";
+        if (crew < approvedCount) return eerr.textContent = `Crew size cannot be less than approved count (${approvedCount}).`;
+
+        const { data: updated, error } = await supabase
+          .from("shifts")
+          .update({
+            title,
+            start_time: startVal,
+            end_time: endVal,
+            shift_where: where,
+            crew_size: crew,
+            notes,
+            google_map_url: mapUrl || null,
+            directions_url: dirUrl || null,
+            required_role: requiredRole || null
+          })
+          .eq("id", shiftId)
+          .select("id");
+
+        if (error) return eerr.textContent = error.message;
+        if (!updated || updated.length === 0) return eerr.textContent = "Update blocked (no rows updated). This is usually an RLS/policy issue.";
+
+        alert("Shift updated.");
+        await showSchedule();
+      };
+    };
+
+    // --- Admin: Manage shift / Delete shift ---
+    window.manageShift = async (shiftId) => {
+      if (!IS_ADMIN) return alert("Admins only.");
+
+      const { data: shift, error: sErr } = await supabase.from("shifts").select("*").eq("id", shiftId).single();
+      if (sErr) return alert(sErr.message);
+
+      const { data: approved, error: aErr } = await supabase
+        .from("shift_claims")
+        .select("id,user_id,user_email,status")
+        .eq("shift_id", shiftId)
+        .eq("status", "approved")
+        .order("created_at", { ascending: true });
+      if (aErr) return alert(aErr.message);
+
+      const cs = Math.max(1, Number(shift.crew_size || 1));
+      const ac = (approved || []).length;
+
+      content.innerHTML = `
+        <div class="row" style="justify-content:space-between;">
+          <div>
+            <h3 style="margin:0;">Manage Shift</h3>
+            <div class="small">Remove approved members to free slots.</div>
+          </div>
+          <div class="row">
+            <button class="secondary" onclick="showSchedule()">Back</button>
+            <button class="secondary" onclick="editShift('${shiftId}')">Edit</button>
+            <button class="danger" onclick="deleteShift('${shiftId}')">Delete Shift</button>
+          </div>
+        </div>
+
+        <div class="card sectionCard">
+          <div style="font-weight:1000; font-size:16px;">${esc(shift.title)}</div>
+          <div class="small" style="margin-top:6px;">🕒 ${fmtDT(shift.start_time)}${shift.end_time ? ` – ${fmtDT(shift.end_time)}` : ""}</div>
+          ${shift.shift_where ? `<div style="margin-top:8px;"><span class="pill">${esc(shift.shift_where)}</span></div>` : ``}
+          ${reqPills(shift)}
+          <div style="margin-top:10px;"><span class="pill">${slotsText(ac, cs)}</span></div>
+          ${renderLinkRow(shift.google_map_url, shift.directions_url)}
+          ${renderNotesBox(shift.notes)}
+        </div>
+
+        <h4 style="margin-top:12px;">Approved Members</h4>
+        ${(approved || []).length ? (approved || []).map(m => `
+          <div class="card sectionCard" style="box-shadow:none;">
+            <div style="font-weight:1000;">${esc(m.user_email || m.user_id)}</div>
+            <div class="row" style="margin-top:10px;">
+              <button class="danger" onclick="adminRemoveApproved('${m.id}')">Remove</button>
+            </div>
+          </div>
+        `).join("") : `<div class="pill">No approved members yet</div>`}
+      `;
+    };
+
+    window.adminRemoveApproved = async (claimId) => {
+      if (!IS_ADMIN) return alert("Admins only.");
+      const { error } = await supabase.from("shift_claims").update({ status: "removed" }).eq("id", claimId);
+      if (error) return alert(error.message);
+      alert("Removed.");
+      await showSchedule();
+    };
+
+    window.deleteShift = async (shiftId) => {
+      if (!IS_ADMIN) return alert("Admins only.");
+      if (!confirm("DELETE SHIFT?\n\nThis permanently removes the shift and all claims.\nThis cannot be undone.")) return;
+
+      const { error: e1 } = await supabase.from("shift_claims").delete().eq("shift_id", shiftId);
+      if (e1) return alert("Delete claims failed: " + e1.message);
+
+      const { data: deletedShift, error: e2 } = await supabase.from("shifts").delete().eq("id", shiftId).select("id");
+      if (e2) return alert("Delete shift failed: " + e2.message);
+
+      if (!deletedShift || deletedShift.length === 0) {
+        alert("Delete blocked (no rows deleted). This is almost always an RLS/policy issue.");
+        return;
+      }
+
+      alert("Shift deleted.");
+      await showSchedule();
+    };
+
+    // --- Calendar ---
+    async function showCalendarWeek(weekOffset = 0) {
+      setActiveNav(calBtn);
+
+      const base = startOfWeek(new Date());
+      const weekStart = addDays(base, weekOffset * 7);
+      const weekEnd = addDays(weekStart, 7);
+
+      content.innerHTML = `
+        <div class="row" style="justify-content:space-between; margin-top:10px;">
+          <div>
+            <h3 style="margin:0;">Weekly Calendar</h3>
+            <div class="small">${fmtDay(weekStart)} – ${fmtDay(addDays(weekStart, 6))}</div>
+          </div>
+          <div class="row">
+            <button class="secondary" id="prevWeekBtn">◀ Prev</button>
+            <button class="secondary" id="thisWeekBtn">This Week</button>
+            <button class="secondary" id="nextWeekBtn">Next ▶</button>
+          </div>
+        </div>
+
+        <div id="calGrid" style="margin-top:12px; display:grid; grid-template-columns: repeat(7, 1fr); gap:10px;"></div>
+        <div id="calErr" class="error"></div>
+      `;
+
+      prevWeekBtn.onclick = () => showCalendarWeek(weekOffset - 1);
+      nextWeekBtn.onclick = () => showCalendarWeek(weekOffset + 1);
+      thisWeekBtn.onclick = () => showCalendarWeek(0);
+
+      const calGrid = document.getElementById("calGrid");
+      const calErr = document.getElementById("calErr");
+
+      const { data, error } = await supabase
+        .from("shifts")
+        .select("*")
+        .gte("start_time", weekStart.toISOString())
+        .lt("start_time", weekEnd.toISOString())
+        .order("start_time", { ascending: true });
+
+      if (error) { calErr.textContent = error.message; return; }
+
+      const shifts = data || [];
+      const shiftIds = shifts.map(s => s.id);
+      const approvedCounts = await getApprovedCountsForShiftIds(shiftIds);
+      const myStatus = await getMyClaimStatusMapForShiftIds(shiftIds);
+
+      const days = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
+
+      days.forEach((dayDate, i) => {
+        const col = document.createElement("div");
+        col.className = "card";
+        col.style.boxShadow = "none";
+        col.style.border = "1px solid var(--line)";
+        col.style.padding = "14px";
+
+        const dayStart = new Date(dayDate); dayStart.setHours(0,0,0,0);
+        const dayEnd = new Date(dayDate); dayEnd.setHours(23,59,59,999);
+
+        const dayShifts = shifts.filter(s => {
+          const st = new Date(s.start_time);
+          return st >= dayStart && st <= dayEnd;
+        });
+
+        col.innerHTML = `
+          <div style="font-weight:1000; margin-bottom:8px;">${fmtDay(dayDate)}</div>
+          <div id="day_${i}" style="display:grid; gap:8px;"></div>
+          ${dayShifts.length === 0 ? `<div class="pill" style="margin-top:8px;">No shifts</div>` : ``}
+        `;
+
+        calGrid.appendChild(col);
+
+        const dayWrap = col.querySelector(`#day_${i}`);
+        dayShifts.forEach(s => {
+          const st = new Date(s.start_time);
+          const en = s.end_time ? new Date(s.end_time) : null;
+
+          const cs = Math.max(1, Number(s.crew_size || 1));
+          const ac = Number(approvedCounts[s.id] || 0);
+          const full = ac >= cs;
+
+          const mine = myStatus[s.id];
+          const gate = canUserClaimShift(s);
+
+          let actionHtml = "";
+          if (full) actionHtml = `<span class="pill">Filled</span>`;
+          else if (mine === "pending") actionHtml = `<span class="pill blue">Pending</span>`;
+          else if (mine === "approved") actionHtml = `<span class="pill ok">Approved</span>`;
+          else if (mine === "removal_requested") actionHtml = `<span class="pill">Removal req.</span>`;
+          else if (!gate.ok) actionHtml = `<button disabled title="${esc(gate.reason)}">Claim</button>`;
+          else actionHtml = `<button onclick="claimShift('${s.id}')">Claim</button>`;
+
+          const block = document.createElement("div");
+          block.style.border = "1px solid var(--line)";
+          block.style.borderRadius = "12px";
+          block.style.padding = "10px";
+          block.style.background = "#fff";
+
+          block.innerHTML = `
+            <div style="font-weight:1000;">${esc(s.title)}</div>
+            <div class="small" style="margin-top:4px;">${fmtTime(st)}${en ? ` – ${fmtTime(en)}` : ``}</div>
+            ${s.shift_where ? `<div class="small" style="margin-top:2px;">${esc(s.shift_where)}</div>` : ``}
+            ${reqPills(s)}
+            <div style="margin-top:8px;">
+              <span class="pill">${slotsText(ac, cs)}</span>
+              <div style="margin-top:8px;">${actionHtml}</div>
+              ${!gate.ok && !full && !mine ? `<div class="small" style="margin-top:6px;">${esc(gate.reason)}</div>` : ``}
+            </div>
+            ${renderLinkRow(s.google_map_url, s.directions_url)}
+            ${renderNotesBox(s.notes)}
+          `;
+
+          dayWrap.appendChild(block);
+        });
+      });
+
+      if (window.innerWidth < 850) calGrid.style.gridTemplateColumns = "1fr";
+    }
+
+    // --- Announcements ---
+    annBtn.onclick = () => {
+      setActiveNav(annBtn);
+      content.innerHTML = `
+        <h3>Announcements</h3>
+        <div class="pill" style="margin-top:12px;">No announcements yet</div>
+      `;
+    };
+
+    // --- Users (admin) ---
+    async function callAdminUsers(payload) {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData?.session?.access_token;
+      if (!token) throw new Error("Not logged in.");
+
+      const url = `${SUPABASE_URL}/functions/v1/admin_users`;
+
+      const res = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer " + token
+        },
+        body: JSON.stringify(payload)
+      });
+
+      const out = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(out?.error || "Request failed");
+      return out;
+    }
+
+    async function showUsers() {
+      if (!IS_ADMIN) return alert("Admins only.");
+      setActiveNav(usersBtn);
+
+      content.innerHTML = `
+        <div class="row" style="justify-content:space-between; align-items:flex-end;">
+          <div>
+            <h3>Users</h3>
+            <div class="small">Create users, set roles, reset passwords, and remove users.</div>
+          </div>
+          <span class="pill blue">Admin</span>
+        </div>
+
+        <div class="card sectionCard">
+          <h4>Create User</h4>
+          <div class="row">
+            <div style="flex:1; min-width:240px;">
+              <label>Email</label>
+              <input id="newUEmail" placeholder="name@email.com" style="width:100%;" />
+            </div>
+            <div style="flex:1; min-width:220px;">
+              <label>Temp Password</label>
+              <input id="newUPass" placeholder="Temporary password" style="width:100%;" />
+            </div>
+          </div>
+
+          <div class="row" style="margin-top:10px;">
+            <div style="flex:1; min-width:220px;">
+              <label>Role</label>
+              <select id="newURole" style="width:100%;">
+                <option value="">None</option>
+                <option value="EMT">EMT</option>
+                <option value="EMR">EMR</option>
+                <option value="Supervisor">Supervisor</option>
+              </select>
+            </div>
+
+            <div style="flex:1; min-width:220px;">
+              <label style="display:flex; gap:10px; align-items:center; margin-top:28px;">
+                <input id="newUAdmin" type="checkbox" style="width:18px; height:18px;" />
+                Admin
+              </label>
+            </div>
+          </div>
+
+          <div class="row" style="margin-top:12px;">
+            <button id="createUserBtn">Create</button>
+            <div id="usersErr" class="error"></div>
+          </div>
+        </div>
+
+        <div class="card sectionCard">
+          <div class="row" style="justify-content:space-between;">
+            <h4 style="margin:0;">All Users</h4>
+            <button class="secondary" id="refreshUsersBtn">Refresh</button>
+          </div>
+          <div id="usersList" style="margin-top:12px; display:grid; gap:12px;"></div>
+        </div>
+      `;
+
+      async function refresh() {
+        usersErr.textContent = "";
+        usersList.innerHTML = `<div class="pill">Loading...</div>`;
+
+        try {
+          const out = await callAdminUsers({ action: "list" });
+          const users = out?.users || [];
+
+          usersList.innerHTML = users.map(u => {
+            const r = u.roles || {};
+            const email = u.email || "";
+            const created = u.created_at ? new Date(u.created_at).toLocaleString() : "";
+            const last = u.last_sign_in_at ? new Date(u.last_sign_in_at).toLocaleString() : "—";
+
+            return `
+              <div class="card" style="box-shadow:none;">
+                <div style="font-weight:1000;">${esc(email)}</div>
+                <div class="small" style="margin-top:6px;">
+                  Created: ${esc(created)} • Last sign-in: ${esc(last)}
+                </div>
+
+                <div class="row" style="margin-top:10px;">
+                  <span class="pill ${r.is_admin ? "blue" : ""}">Admin: ${r.is_admin ? "Yes" : "No"}</span>
+                  <span class="pill">Role: ${esc(r.role || "None")}</span>
+                </div>
+
+                <hr>
+
+                <div class="row">
+                  <div style="min-width:200px;">
+                    <label>Role</label>
+                    <select id="role_${u.id}">
+                      <option value="">None</option>
+                      <option value="EMT">EMT</option>
+                      <option value="EMR">EMR</option>
+                      <option value="Supervisor">Supervisor</option>
+                    </select>
+                  </div>
+
+                  <div style="min-width:160px;">
+                    <label style="display:flex; gap:10px; align-items:center; margin-top:28px;">
+                      <input id="adm_${u.id}" type="checkbox" style="width:18px; height:18px;" />
+                      Admin
+                    </label>
+                  </div>
+                </div>
+
+                <div class="row" style="margin-top:12px;">
+                  <button class="secondary" onclick="saveUserRoles('${u.id}')">Save</button>
+                  <button class="secondary" onclick="resetUserPass('${u.id}')">Reset Password</button>
+                  <button class="danger" onclick="deleteUser('${u.id}','${esc(email).replace(/'/g,"&#039;")}')">Delete</button>
+                </div>
+
+                <div class="small" style="margin-top:8px;">
+                  Reset Password sets a new temp password you choose (you’ll be prompted).
+                </div>
+              </div>
+            `;
+          }).join("") || `<div class="pill">No users found</div>`;
+
+          users.forEach(u => {
+            const r = u.roles || {};
+            const roleSel = document.getElementById(`role_${u.id}`);
+            const adm = document.getElementById(`adm_${u.id}`);
+            if (roleSel) roleSel.value = r.role || "";
+            if (adm) adm.checked = !!r.is_admin;
+          });
+
+        } catch (e) {
+          usersErr.textContent = e.message || String(e);
+          usersList.innerHTML = "";
+        }
+      }
+
+      createUserBtn.onclick = async () => {
+        usersErr.textContent = "";
+        try {
+          const email = (newUEmail.value || "").trim();
+          const password = (newUPass.value || "").trim();
+          const role = (newURole.value || "").trim() || null;
+          const is_admin = !!newUAdmin.checked;
+
+          if (!email || !password) { usersErr.textContent = "Email and temp password required."; return; }
+
+          await callAdminUsers({ action: "create", email, password, role, is_admin });
+
+          newUEmail.value = "";
+          newUPass.value = "";
+          newURole.value = "";
+          newUAdmin.checked = false;
+
+          alert("User created ✅");
+          await refresh();
+        } catch (e) {
+          usersErr.textContent = e.message || String(e);
+        }
+      };
+
+      refreshUsersBtn.onclick = refresh;
+
+      window.saveUserRoles = async (id) => {
+        try {
+          const role = (document.getElementById(`role_${id}`)?.value || "").trim() || null;
+          const is_admin = !!document.getElementById(`adm_${id}`)?.checked;
+
+          await callAdminUsers({ action: "update", id, roles: { role, is_admin } });
+          alert("Updated ✅");
+          await refresh();
+        } catch (e) {
+          alert(e.message || String(e));
+        }
+      };
+
+      window.resetUserPass = async (id) => {
+        const pw = prompt("Enter a NEW temp password for this user:");
+        if (!pw) return;
+        try {
+          await callAdminUsers({ action: "update", id, password: pw });
+          alert("Password reset ✅ (give them the temp password)");
+        } catch (e) {
+          alert(e.message || String(e));
+        }
+      };
+
+      window.deleteUser = async (id, email) => {
+        if (!confirm(`Delete user?\n\n${email}\n\nThis removes their account.`)) return;
+        try {
+          await callAdminUsers({ action: "delete", id });
+          alert("User deleted ✅");
+          await refresh();
+        } catch (e) {
+          alert(e.message || String(e));
+        }
+      };
+
+      await refresh();
+    }
+
+    if (typeof usersBtn !== "undefined") usersBtn.onclick = showUsers;
+
+    // --- Nav wiring ---
+    schedBtn.onclick = showSchedule;
+    calBtn.onclick = () => showCalendarWeek(0);
+
+    // --- Auto login ---
+    const user = await getUser();
+    if (user) await showPortal(user);
+
+  } catch (err) {
+    document.body.innerHTML = `
+      <div style="padding:20px;font-family:monospace;color:#b00020;">
+        <h2>Portal Crash</h2>
+        <pre>${String(err && (err.stack || err.message || err))}</pre>
+      </div>
+    `;
+    console.error(err);
   }
-
-  createUserBtn.onclick = async () => {
-    usersErr.textContent = "";
-    try {
-      const email = (newUEmail.value || "").trim();
-      const password = (newUPass.value || "").trim();
-      const role = (newURole.value || "").trim() || null;
-      const is_admin = !!newUAdmin.checked;
-
-      if (!email || !password) { usersErr.textContent = "Email and temp password required."; return; }
-
-      await callAdminUsers({ action: "create", email, password, role, is_admin });
-
-      newUEmail.value = "";
-      newUPass.value = "";
-      newURole.value = "";
-      newUAdmin.checked = false;
-
-      alert("User created ✅");
-      await refresh();
-    } catch (e) {
-      usersErr.textContent = e.message || String(e);
-    }
-  };
-
-  refreshUsersBtn.onclick = refresh;
-
-  window.saveUserRoles = async (id) => {
-    try {
-      const role = (document.getElementById(`role_${id}`)?.value || "").trim() || null;
-      const is_admin = !!document.getElementById(`adm_${id}`)?.checked;
-
-      await callAdminUsers({ action: "update", id, roles: { role, is_admin } });
-
-      alert("Updated ✅");
-      await refresh();
-    } catch (e) {
-      alert(e.message || String(e));
-    }
-  };
-
-  window.resetUserPass = async (id) => {
-    const pw = prompt("Enter a NEW temp password for this user:");
-    if (!pw) return;
-    try {
-      await callAdminUsers({ action: "update", id, password: pw });
-      alert("Password reset ✅ (give them the temp password)");
-    } catch (e) {
-      alert(e.message || String(e));
-    }
-  };
-
-  window.deleteUser = async (id, email) => {
-    if (!confirm(`Delete user?\n\n${email}\n\nThis removes their account.`)) return;
-    try {
-      await callAdminUsers({ action: "delete", id });
-      alert("User deleted ✅");
-      await refresh();
-    } catch (e) {
-      alert(e.message || String(e));
-    }
-  };
-
-  await refresh();
-}
-
-if (typeof usersBtn !== "undefined") usersBtn.onclick = showUsers;
-
-// ===== Nav wiring =====
-schedBtn.onclick = showSchedule;
-calBtn.onclick = () => showCalendarWeek(0);
-
-// ===== Auto login =====
-const user = await getUser();
-if (user) await showPortal(user);
-} catch (err) {
-  document.body.innerHTML = `
-    <div style="padding:20px;font-family:monospace;color:red;">
-      <h2>Portal Crash</h2>
-      <pre>${err.message}</pre>
-    </div>
-  `;
-  console.error(err);
-}
 })();
 </script>
