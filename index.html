@@ -12,10 +12,14 @@ body { font-family: system-ui; background:#f5f6f8; margin:0; }
 .row { display:flex; gap:12px; flex-wrap:wrap; align-items:center; }
 button { padding:12px 16px; border-radius:10px; border:none; background:#111; color:#fff; font-weight:700; cursor:pointer; }
 button.secondary { background:#eaeaea; color:#111; }
+button.danger { background:#b00020; }
+button:disabled { opacity:.55; cursor:not-allowed; }
 input { padding:10px; border-radius:8px; border:1px solid #ccc; }
 .error { color:#b00020; font-weight:600; margin-top:8px; }
-.pill { background:#eee; padding:6px 12px; border-radius:999px; font-size:13px; font-weight:700; }
+.pill { background:#eee; padding:6px 12px; border-radius:999px; font-size:13px; font-weight:700; display:inline-block; }
 .debug { font-weight:800; margin-top:10px; }
+hr { border:none; border-top:1px solid #eee; margin:16px 0; }
+.small { color:#666; font-size:13px; }
 </style>
 </head>
 <body>
@@ -42,7 +46,7 @@ input { padding:10px; border-radius:8px; border:1px solid #ccc; }
   <div class="row" style="margin-top:14px">
     <button id="schedBtn">Scheduling</button>
     <button id="calBtn">Calendar</button>
-    <button id="myBtn">My Shifts</button>
+    <button id="myBtn">My Requests / Shifts</button>
     <button id="annBtn">Announcements</button>
     <button id="apprBtn">Approvals</button>
   </div>
@@ -62,7 +66,6 @@ const supabase = createClient(
 
 const esc = s => String(s ?? "").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"}[m]));
 const debug = msg => document.getElementById("debug").textContent = msg;
-
 debug("JS loaded ✅");
 
 let CURRENT_USER = null;
@@ -81,6 +84,11 @@ async function checkAdmin(userId) {
     .eq("user_id", userId)
     .single();
   return !!data?.is_admin;
+}
+
+function fmtDT(dt) {
+  if (!dt) return "";
+  try { return new Date(dt).toLocaleString(); } catch { return String(dt); }
 }
 
 // Monday-start week helpers
@@ -133,6 +141,49 @@ async function showPortal(user) {
   await showSchedule();
 }
 
+// ===== Core data helpers for slots / claims =====
+async function getApprovedCountsForShiftIds(shiftIds) {
+  const map = {};
+  shiftIds.forEach(id => map[id] = 0);
+  if (!shiftIds.length) return map;
+
+  const { data, error } = await supabase
+    .from("shift_claims")
+    .select("shift_id,status")
+    .in("shift_id", shiftIds)
+    .eq("status", "approved");
+
+  if (error) return map;
+
+  (data || []).forEach(r => {
+    map[r.shift_id] = (map[r.shift_id] || 0) + 1;
+  });
+  return map;
+}
+
+async function getMyClaimStatusMapForShiftIds(shiftIds) {
+  const map = {}; // shift_id -> status
+  if (!shiftIds.length) return map;
+
+  const { data, error } = await supabase
+    .from("shift_claims")
+    .select("shift_id,status")
+    .in("shift_id", shiftIds)
+    .eq("user_id", CURRENT_USER.id)
+    .in("status", ["pending","approved","removal_requested"]);
+
+  if (error) return map;
+
+  (data || []).forEach(r => { map[r.shift_id] = r.status; });
+  return map;
+}
+
+function slotsText(approvedCount, crewSize) {
+  const cs = Math.max(1, Number(crewSize || 1));
+  const ac = Number(approvedCount || 0);
+  return `${ac}/${cs} filled`;
+}
+
 // ===== Scheduling (list) =====
 async function showSchedule() {
   content.innerHTML = `
@@ -158,9 +209,14 @@ async function showSchedule() {
           <div style="font-weight:700; margin-bottom:6px;">Where</div>
           <input id="swhere" placeholder="Where" style="width:100%;" />
         </div>
+        <div style="width:130px;">
+          <div style="font-weight:700; margin-bottom:6px;">Crew Size</div>
+          <input id="screw" type="number" min="1" value="1" style="width:100%;" />
+        </div>
       </div>
       <button id="postBtn" style="margin-top:12px;">Post</button>
       <div id="perr" class="error"></div>
+      <div class="small" style="margin-top:6px;">Crew size = how many employees can be approved for this shift.</div>
     </div>` : ``}
 
     <div id="list"></div>
@@ -170,16 +226,23 @@ async function showSchedule() {
     postBtn.onclick = async () => {
       perr.textContent = "";
 
-      if (!stitle.value.trim() || !sstart.value || !send.value) {
+      const title = stitle.value.trim();
+      const where = swhere.value.trim();
+      const startVal = sstart.value;
+      const endVal = send.value;
+      const crew = Math.max(1, parseInt(screw.value || "1", 10));
+
+      if (!title || !startVal || !endVal) {
         perr.textContent = "Enter a title, start, and end time.";
         return;
       }
 
       const { error } = await supabase.from("shifts").insert({
-        title: stitle.value.trim(),
-        start_time: sstart.value,
-        end_time: send.value,
-        shift_where: swhere.value.trim(),
+        title,
+        start_time: startVal,
+        end_time: endVal,
+        shift_where: where,
+        crew_size: crew,
         created_by: CURRENT_USER.id
       });
 
@@ -193,6 +256,7 @@ async function showSchedule() {
       sstart.value = "";
       send.value = "";
       swhere.value = "";
+      screw.value = "1";
 
       await loadShifts();
     };
@@ -205,7 +269,6 @@ async function loadShifts() {
   const { data, error } = await supabase
     .from("shifts")
     .select("*")
-    .is("filled_by", null)
     .order("start_time", { ascending: true });
 
   if (error) {
@@ -213,50 +276,404 @@ async function loadShifts() {
     return;
   }
 
-  list.innerHTML = (data || []).map(s => `
-    <div class="card">
-      <b>${esc(s.title)}</b><br>
-      ${s.start_time ? new Date(s.start_time).toLocaleString() : ""}${s.end_time ? ` – ${new Date(s.end_time).toLocaleString()}` : ""}<br>
-      ${s.shift_where ? `<span class="pill">${esc(s.shift_where)}</span><br><br>` : `<br>`}
-      <button onclick="claim('${s.id}')">Claim</button>
-    </div>
-  `).join("") || `<div class="pill" style="margin-top:12px; display:inline-block;">No shifts posted yet</div>`;
+  const shifts = data || [];
+  const shiftIds = shifts.map(s => s.id);
+
+  const approvedCounts = await getApprovedCountsForShiftIds(shiftIds);
+  const myStatus = await getMyClaimStatusMapForShiftIds(shiftIds);
+
+  // Show all shifts; “Claim” only if slots available
+  list.innerHTML = shifts.map(s => {
+    const cs = Math.max(1, Number(s.crew_size || 1));
+    const ac = Number(approvedCounts[s.id] || 0);
+    const full = ac >= cs;
+
+    const mine = myStatus[s.id]; // pending/approved/removal_requested/undefined
+    let claimBtnHtml = "";
+
+    if (full) {
+      claimBtnHtml = `<span class="pill">Filled</span>`;
+    } else if (mine === "pending") {
+      claimBtnHtml = `<span class="pill">Pending approval</span>`;
+    } else if (mine === "approved") {
+      claimBtnHtml = `<span class="pill">You’re approved</span>`;
+    } else if (mine === "removal_requested") {
+      claimBtnHtml = `<span class="pill">Removal requested</span>`;
+    } else {
+      claimBtnHtml = `<button onclick="claimShift('${s.id}')">Claim</button>`;
+    }
+
+    const adminBtns = IS_ADMIN ? `
+      <div class="row" style="margin-top:10px;">
+        <button class="secondary" onclick="manageShift('${s.id}')">Manage</button>
+        <button class="danger" onclick="deleteShift('${s.id}')">Delete</button>
+      </div>
+      <div class="small">Manage = remove approved members. Delete = remove shift entirely.</div>
+    ` : ``;
+
+    return `
+      <div class="card">
+        <b>${esc(s.title)}</b><br>
+        ${fmtDT(s.start_time)}${s.end_time ? ` – ${fmtDT(s.end_time)}` : ""}<br>
+        ${s.shift_where ? `<span class="pill">${esc(s.shift_where)}</span>` : ``}
+        <span class="pill" style="margin-left:8px;">${slotsText(ac, cs)}</span>
+        <div style="margin-top:12px;">
+          ${claimBtnHtml}
+        </div>
+        ${adminBtns}
+      </div>
+    `;
+  }).join("") || `<div class="pill" style="margin-top:12px;">No shifts posted yet</div>`;
 }
 
-// ===== Claim (double-claim protected) =====
-window.claim = async (id) => {
-  // Check if a pending claim already exists
-  const { data: existing, error: exErr } = await supabase
+// ===== Claim / Cancel / Removal Request =====
+window.claimShift = async (shiftId) => {
+  // 1) block if already pending/approved/removal_requested for this shift
+  const { data: mine, error: mineErr } = await supabase
     .from("shift_claims")
-    .select("id")
-    .eq("shift_id", id)
-    .eq("status", "pending")
+    .select("id,status")
+    .eq("shift_id", shiftId)
+    .eq("user_id", CURRENT_USER.id)
+    .in("status", ["pending","approved","removal_requested"])
     .limit(1);
 
-  if (exErr) {
-    alert("Error checking claims: " + exErr.message);
-    return;
-  }
+  if (mineErr) return alert(mineErr.message);
+  if (mine && mine.length) return alert("You already have a request for this shift.");
 
-  if (existing && existing.length > 0) {
-    alert("This shift already has a pending claim.");
-    return;
-  }
+  // 2) enforce slot availability
+  const { data: shift, error: sErr } = await supabase
+    .from("shifts")
+    .select("id,crew_size")
+    .eq("id", shiftId)
+    .single();
+  if (sErr) return alert(sErr.message);
 
+  const { data: approvedRows, error: aErr } = await supabase
+    .from("shift_claims")
+    .select("id")
+    .eq("shift_id", shiftId)
+    .eq("status", "approved");
+  if (aErr) return alert(aErr.message);
+
+  const cs = Math.max(1, Number(shift.crew_size || 1));
+  const ac = (approvedRows || []).length;
+  if (ac >= cs) return alert("This shift is already filled.");
+
+  // 3) create pending claim
   const { error } = await supabase.from("shift_claims").insert({
-    shift_id: id,
+    shift_id: shiftId,
     user_id: CURRENT_USER.id,
     user_email: CURRENT_USER.email,
     status: "pending"
   });
 
-  if (error) {
-    alert(error.message);
-    return;
-  }
+  if (error) return alert(error.message);
 
   alert("Claim sent for approval.");
   await loadShifts();
+};
+
+window.cancelMyPending = async (claimId) => {
+  const { error } = await supabase
+    .from("shift_claims")
+    .update({ status: "canceled" })
+    .eq("id", claimId)
+    .eq("user_id", CURRENT_USER.id);
+
+  if (error) return alert(error.message);
+  alert("Request canceled.");
+  await showMyRequests();
+};
+
+window.requestRemoval = async (claimId) => {
+  const { error } = await supabase
+    .from("shift_claims")
+    .update({ status: "removal_requested" })
+    .eq("id", claimId)
+    .eq("user_id", CURRENT_USER.id);
+
+  if (error) return alert(error.message);
+  alert("Removal request sent to admin.");
+  await showMyRequests();
+};
+
+// ===== My Requests / My Shifts (combined) =====
+async function showMyRequests() {
+  const { data, error } = await supabase
+    .from("shift_claims")
+    .select("id,status,created_at,shift_id,shifts(title,start_time,end_time,shift_where,crew_size)")
+    .eq("user_id", CURRENT_USER.id)
+    .in("status", ["pending","approved","removal_requested"])
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    content.innerHTML = `<div class="error">${esc(error.message)}</div>`;
+    return;
+  }
+
+  const rows = data || [];
+  const pending = rows.filter(r => r.status === "pending");
+  const approved = rows.filter(r => r.status === "approved");
+  const removal = rows.filter(r => r.status === "removal_requested");
+
+  content.innerHTML = `
+    <h3>My Requests / Shifts</h3>
+
+    <h4>Pending Requests</h4>
+    ${pending.length ? pending.map(r => `
+      <div class="card">
+        <b>${esc(r.shifts?.title || "Shift")}</b><br>
+        ${fmtDT(r.shifts?.start_time)}${r.shifts?.end_time ? ` – ${fmtDT(r.shifts.end_time)}` : ""}<br>
+        ${r.shifts?.shift_where ? `<span class="pill">${esc(r.shifts.shift_where)}</span>` : ``}
+        <div style="margin-top:10px;">
+          <span class="pill">Pending</span>
+          <button class="secondary" style="margin-left:10px;" onclick="cancelMyPending('${r.id}')">Cancel Request</button>
+        </div>
+      </div>
+    `).join("") : `<div class="pill">No pending requests</div>`}
+
+    <hr>
+
+    <h4>Approved Shifts</h4>
+    ${approved.length ? approved.map(r => `
+      <div class="card">
+        <b>${esc(r.shifts?.title || "Shift")}</b><br>
+        ${fmtDT(r.shifts?.start_time)}${r.shifts?.end_time ? ` – ${fmtDT(r.shifts.end_time)}` : ""}<br>
+        ${r.shifts?.shift_where ? `<span class="pill">${esc(r.shifts.shift_where)}</span>` : ``}
+        <div style="margin-top:10px;">
+          <span class="pill">Approved ✅</span>
+          <button class="secondary" style="margin-left:10px;" onclick="requestRemoval('${r.id}')">Request Removal</button>
+        </div>
+        <div class="small" style="margin-top:6px;">Removal requires admin action.</div>
+      </div>
+    `).join("") : `<div class="pill">No approved shifts yet</div>`}
+
+    <hr>
+
+    <h4>Removal Requests</h4>
+    ${removal.length ? removal.map(r => `
+      <div class="card">
+        <b>${esc(r.shifts?.title || "Shift")}</b><br>
+        ${fmtDT(r.shifts?.start_time)}${r.shifts?.end_time ? ` – ${fmtDT(r.shifts.end_time)}` : ""}<br>
+        ${r.shifts?.shift_where ? `<span class="pill">${esc(r.shifts.shift_where)}</span>` : ``}
+        <div style="margin-top:10px;">
+          <span class="pill">Removal requested</span>
+        </div>
+      </div>
+    `).join("") : `<div class="pill">No removal requests</div>`}
+  `;
+}
+
+myBtn.onclick = showMyRequests;
+
+// ===== Approvals (admin) =====
+apprBtn.onclick = async () => {
+  if (!IS_ADMIN) return alert("Admins only.");
+
+  // pending claims
+  const { data: pending, error: pErr } = await supabase
+    .from("shift_claims")
+    .select("id,user_id,user_email,shift_id,status,created_at,shifts(id,title,start_time,end_time,shift_where,crew_size)")
+    .eq("status", "pending")
+    .order("created_at", { ascending: false });
+
+  if (pErr) return content.innerHTML = `<div class="error">${esc(pErr.message)}</div>`;
+
+  // removal requests
+  const { data: removal, error: rErr } = await supabase
+    .from("shift_claims")
+    .select("id,user_id,user_email,shift_id,status,created_at,shifts(id,title,start_time,end_time,shift_where,crew_size)")
+    .eq("status", "removal_requested")
+    .order("created_at", { ascending: false });
+
+  if (rErr) return content.innerHTML = `<div class="error">${esc(rErr.message)}</div>`;
+
+  // precompute approved counts for all involved shifts
+  const shiftIds = Array.from(new Set([...(pending||[]).map(x=>x.shift_id), ...(removal||[]).map(x=>x.shift_id)]));
+  const approvedCounts = await getApprovedCountsForShiftIds(shiftIds);
+
+  content.innerHTML = `
+    <h3>Approvals</h3>
+
+    <h4>Pending Claims</h4>
+    ${(pending||[]).length ? (pending||[]).map(c => {
+      const s = c.shifts || {};
+      const cs = Math.max(1, Number(s.crew_size || 1));
+      const ac = Number(approvedCounts[c.shift_id] || 0);
+      const full = ac >= cs;
+
+      return `
+        <div class="card">
+          <b>${esc(s.title || "Shift")}</b><br>
+          ${fmtDT(s.start_time)}${s.end_time ? ` – ${fmtDT(s.end_time)}` : ""}<br>
+          ${s.shift_where ? `<span class="pill">${esc(s.shift_where)}</span>` : ``}
+          <span class="pill" style="margin-left:8px;">${slotsText(ac, cs)}</span>
+          <div style="margin-top:10px;">Claimed by: <b>${esc(c.user_email || c.user_id)}</b></div>
+          <div class="row" style="margin-top:10px;">
+            <button ${full ? "disabled" : ""} onclick="approveClaim('${c.id}','${c.shift_id}','${c.user_id}')">
+              ${full ? "Full" : "Approve"}
+            </button>
+            <button class="secondary" onclick="denyClaim('${c.id}')">Deny</button>
+          </div>
+          ${full ? `<div class="small">Shift is already full. Remove someone from the shift (Manage) to free a slot.</div>` : ``}
+        </div>
+      `;
+    }).join("") : `<div class="pill">No pending claims</div>`}
+
+    <hr>
+
+    <h4>Removal Requests</h4>
+    ${(removal||[]).length ? (removal||[]).map(c => {
+      const s = c.shifts || {};
+      const cs = Math.max(1, Number(s.crew_size || 1));
+      const ac = Number(approvedCounts[c.shift_id] || 0);
+
+      return `
+        <div class="card">
+          <b>${esc(s.title || "Shift")}</b><br>
+          ${fmtDT(s.start_time)}${s.end_time ? ` – ${fmtDT(s.end_time)}` : ""}<br>
+          ${s.shift_where ? `<span class="pill">${esc(s.shift_where)}</span>` : ``}
+          <span class="pill" style="margin-left:8px;">${slotsText(ac, cs)}</span>
+          <div style="margin-top:10px;">Employee: <b>${esc(c.user_email || c.user_id)}</b></div>
+          <div class="row" style="margin-top:10px;">
+            <button onclick="approveRemoval('${c.id}')">Approve Removal</button>
+            <button class="secondary" onclick="denyRemoval('${c.id}')">Deny Removal</button>
+          </div>
+        </div>
+      `;
+    }).join("") : `<div class="pill">No removal requests</div>`}
+  `;
+};
+
+window.approveClaim = async (claimId, shiftId, userId) => {
+  // approve claim
+  const { error: e1 } = await supabase
+    .from("shift_claims")
+    .update({ status: "approved" })
+    .eq("id", claimId);
+
+  if (e1) return alert(e1.message);
+
+  // OPTIONAL compatibility: if crew_size = 1, you could set shifts.filled_by = userId
+  // We do NOT rely on filled_by anymore (we use approved counts).
+  alert("Approved.");
+  apprBtn.onclick();
+};
+
+window.denyClaim = async (claimId) => {
+  const { error } = await supabase
+    .from("shift_claims")
+    .update({ status: "denied" })
+    .eq("id", claimId);
+
+  if (error) return alert(error.message);
+  alert("Denied.");
+  apprBtn.onclick();
+};
+
+window.approveRemoval = async (claimId) => {
+  const { error } = await supabase
+    .from("shift_claims")
+    .update({ status: "removed" })
+    .eq("id", claimId);
+
+  if (error) return alert(error.message);
+  alert("Removed from shift.");
+  apprBtn.onclick();
+};
+
+window.denyRemoval = async (claimId) => {
+  const { error } = await supabase
+    .from("shift_claims")
+    .update({ status: "approved" })
+    .eq("id", claimId);
+
+  if (error) return alert(error.message);
+  alert("Removal denied (kept approved).");
+  apprBtn.onclick();
+};
+
+// ===== Admin: Manage shift (remove member) / Delete shift =====
+window.manageShift = async (shiftId) => {
+  if (!IS_ADMIN) return alert("Admins only.");
+
+  const { data: shift, error: sErr } = await supabase
+    .from("shifts")
+    .select("*")
+    .eq("id", shiftId)
+    .single();
+  if (sErr) return alert(sErr.message);
+
+  const { data: approved, error: aErr } = await supabase
+    .from("shift_claims")
+    .select("id,user_id,user_email,status")
+    .eq("shift_id", shiftId)
+    .eq("status", "approved")
+    .order("created_at", { ascending: true });
+
+  if (aErr) return alert(aErr.message);
+
+  const cs = Math.max(1, Number(shift.crew_size || 1));
+  const ac = (approved || []).length;
+
+  content.innerHTML = `
+    <div class="row" style="justify-content:space-between;">
+      <h3 style="margin:0;">Manage Shift</h3>
+      <div class="row">
+        <button class="secondary" onclick="showSchedule()">Back</button>
+        <button class="danger" onclick="deleteShift('${shiftId}')">Delete Shift</button>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:12px;">
+      <b>${esc(shift.title)}</b><br>
+      ${fmtDT(shift.start_time)}${shift.end_time ? ` – ${fmtDT(shift.end_time)}` : ""}<br>
+      ${shift.shift_where ? `<span class="pill">${esc(shift.shift_where)}</span>` : ``}
+      <span class="pill" style="margin-left:8px;">${slotsText(ac, cs)}</span>
+      <div class="small" style="margin-top:8px;">Remove an employee to free a slot.</div>
+    </div>
+
+    <h4>Approved Members</h4>
+    ${(approved || []).length ? (approved || []).map(m => `
+      <div class="card">
+        <div><b>${esc(m.user_email || m.user_id)}</b></div>
+        <div class="row" style="margin-top:10px;">
+          <button class="danger" onclick="adminRemoveApproved('${m.id}')">Remove</button>
+        </div>
+        <div class="small" style="margin-top:6px;">This sets their claim to "removed" and frees a slot.</div>
+      </div>
+    `).join("") : `<div class="pill">No approved members yet</div>`}
+  `;
+};
+
+window.adminRemoveApproved = async (claimId) => {
+  if (!IS_ADMIN) return alert("Admins only.");
+
+  const { error } = await supabase
+    .from("shift_claims")
+    .update({ status: "removed" })
+    .eq("id", claimId);
+
+  if (error) return alert(error.message);
+  alert("Removed.");
+  // Stay on manage view: refresh by just reloading schedule then clicking manage again is annoying,
+  // but simplest is: go back to schedule and re-open manage if needed.
+  await showSchedule();
+};
+
+window.deleteShift = async (shiftId) => {
+  if (!IS_ADMIN) return alert("Admins only.");
+  if (!confirm("Delete this shift? This will delete all related claims too.")) return;
+
+  // delete claims first (safe)
+  const { error: e1 } = await supabase.from("shift_claims").delete().eq("shift_id", shiftId);
+  if (e1) return alert("Delete claims failed: " + e1.message);
+
+  const { error: e2 } = await supabase.from("shifts").delete().eq("id", shiftId);
+  if (e2) return alert("Delete shift failed: " + e2.message);
+
+  alert("Shift deleted.");
+  await showSchedule();
 };
 
 // ===== Calendar (weekly) =====
@@ -275,7 +692,7 @@ async function showCalendarWeek(weekOffset = 0) {
       </div>
     </div>
 
-    <div class="pill" style="margin-top:10px; display:inline-block;">
+    <div class="pill" style="margin-top:10px;">
       ${fmtDay(weekStart)} – ${fmtDay(addDays(weekStart, 6))}
     </div>
 
@@ -308,6 +725,11 @@ async function showCalendarWeek(weekOffset = 0) {
     return;
   }
 
+  const shifts = data || [];
+  const shiftIds = shifts.map(s => s.id);
+  const approvedCounts = await getApprovedCountsForShiftIds(shiftIds);
+  const myStatus = await getMyClaimStatusMapForShiftIds(shiftIds);
+
   const days = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
 
   days.forEach((dayDate, i) => {
@@ -320,7 +742,7 @@ async function showCalendarWeek(weekOffset = 0) {
     const dayStart = new Date(dayDate); dayStart.setHours(0,0,0,0);
     const dayEnd = new Date(dayDate); dayEnd.setHours(23,59,59,999);
 
-    const dayShifts = (data || []).filter(s => {
+    const dayShifts = shifts.filter(s => {
       const st = new Date(s.start_time);
       return st >= dayStart && st <= dayEnd;
     });
@@ -328,7 +750,7 @@ async function showCalendarWeek(weekOffset = 0) {
     col.innerHTML = `
       <div style="font-weight:900; margin-bottom:8px;">${fmtDay(dayDate)}</div>
       <div id="day_${i}" style="display:grid; gap:8px;"></div>
-      ${dayShifts.length === 0 ? `<div class="pill" style="margin-top:8px; display:inline-block;">No shifts</div>` : ``}
+      ${dayShifts.length === 0 ? `<div class="pill" style="margin-top:8px;">No shifts</div>` : ``}
     `;
 
     calGrid.appendChild(col);
@@ -338,7 +760,18 @@ async function showCalendarWeek(weekOffset = 0) {
       const st = new Date(s.start_time);
       const en = s.end_time ? new Date(s.end_time) : null;
 
-      const filled = !!s.filled_by;
+      const cs = Math.max(1, Number(s.crew_size || 1));
+      const ac = Number(approvedCounts[s.id] || 0);
+      const full = ac >= cs;
+
+      const mine = myStatus[s.id];
+      let actionHtml = "";
+      if (full) actionHtml = `<span class="pill">Filled</span>`;
+      else if (mine === "pending") actionHtml = `<span class="pill">Pending</span>`;
+      else if (mine === "approved") actionHtml = `<span class="pill">Approved</span>`;
+      else if (mine === "removal_requested") actionHtml = `<span class="pill">Removal req.</span>`;
+      else actionHtml = `<button onclick="claimShift('${s.id}')">Claim</button>`;
+
       const block = document.createElement("div");
       block.style.border = "1px solid #ddd";
       block.style.borderRadius = "10px";
@@ -350,9 +783,10 @@ async function showCalendarWeek(weekOffset = 0) {
         <div style="color:#444; margin-top:4px;">
           ${fmtTime(st)}${en ? ` – ${fmtTime(en)}` : ``}
         </div>
-        ${s.shift_where ? `<div style="color:#666; margin-top:2px;">${esc(s.shift_where)}</div>` : ``}
+        ${s.shift_where ? `<div class="small" style="margin-top:2px;">${esc(s.shift_where)}</div>` : ``}
         <div style="margin-top:8px;">
-          ${filled ? `<span class="pill">Filled</span>` : `<button onclick="claim('${s.id}')">Claim</button>`}
+          <span class="pill">${slotsText(ac, cs)}</span>
+          <div style="margin-top:8px;">${actionHtml}</div>
         </div>
       `;
 
@@ -365,84 +799,11 @@ async function showCalendarWeek(weekOffset = 0) {
   }
 }
 
-// ===== My Shifts =====
-myBtn.onclick = async () => {
-  const { data, error } = await supabase
-    .from("shifts")
-    .select("*")
-    .eq("filled_by", CURRENT_USER.id)
-    .order("start_time", { ascending: true });
-
-  if (error) {
-    content.innerHTML = `<div class="error">${esc(error.message)}</div>`;
-    return;
-  }
-
-  content.innerHTML = `
-    <h3>My Shifts</h3>
-    ${data.length
-      ? data.map(s => `
-        <div class="card">
-          <b>${esc(s.title)}</b><br>
-          ${s.start_time ? new Date(s.start_time).toLocaleString() : ""}${s.end_time ? ` – ${new Date(s.end_time).toLocaleString()}` : ""}<br>
-          ${s.shift_where ? `<span class="pill">${esc(s.shift_where)}</span>` : ``}
-          <div class="pill" style="margin-top:10px; display:inline-block;">Assigned ✅</div>
-        </div>
-      `).join("")
-      : `<div class="pill" style="margin-top:12px; display:inline-block;">No assigned shifts yet</div>`
-    }
-  `;
-};
-
-// ===== Approvals =====
-apprBtn.onclick = async () => {
-  const { data, error } = await supabase
-    .from("shift_claims")
-    .select("id,user_id,user_email,shift_id,status,shifts(title,start_time,end_time,shift_where)")
-    .eq("status", "pending")
-    .order("created_at", { ascending: false });
-
-  if (error) {
-    content.innerHTML = `<div class="error">${esc(error.message)}</div>`;
-    return;
-  }
-
-  content.innerHTML = `
-    <h3>Approvals</h3>
-    ${data.length ? data.map(c => `
-      <div class="card">
-        <b>${esc(c.shifts?.title || "Shift")}</b><br>
-        ${c.shifts?.start_time ? new Date(c.shifts.start_time).toLocaleString() : ""}${c.shifts?.end_time ? ` – ${new Date(c.shifts.end_time).toLocaleString()}` : ""}<br>
-        ${c.shifts?.shift_where ? `<span class="pill">${esc(c.shifts.shift_where)}</span><br><br>` : `<br>`}
-        Claimed by: <b>${esc(c.user_email || c.user_id)}</b><br><br>
-        <button onclick="approve('${c.id}','${c.shift_id}','${c.user_id}')">Approve</button>
-        <button class="secondary" onclick="deny('${c.id}')">Deny</button>
-      </div>
-    `).join("") : `<div class="pill" style="margin-top:12px; display:inline-block;">No pending claims</div>`}
-  `;
-};
-
-window.approve = async (cid, sid, uid) => {
-  const { error: e1 } = await supabase.from("shift_claims").update({ status: "approved" }).eq("id", cid);
-  if (e1) return alert(e1.message);
-
-  const { error: e2 } = await supabase.from("shifts").update({ filled_by: uid }).eq("id", sid);
-  if (e2) return alert(e2.message);
-
-  apprBtn.onclick();
-};
-
-window.deny = async (cid) => {
-  const { error } = await supabase.from("shift_claims").update({ status: "denied" }).eq("id", cid);
-  if (error) return alert(error.message);
-  apprBtn.onclick();
-};
-
 // ===== Announcements =====
 annBtn.onclick = () => {
   content.innerHTML = `
     <h3>Announcements</h3>
-    <div class="pill" style="margin-top:12px; display:inline-block;">No announcements yet</div>
+    <div class="pill" style="margin-top:12px;">No announcements yet</div>
   `;
 };
 
