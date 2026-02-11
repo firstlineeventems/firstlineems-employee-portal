@@ -240,6 +240,7 @@ window.approve = async (cid,sid,uid) => {
 
 annBtn.onclick = () => content.innerHTML = `<p>No announcements</p>`;
 schedBtn.onclick = showSchedule;
+  calBtn.onclick = () => showCalendarWeek(0);
 
 /* AUTO LOGIN */
 const user = await getUser();
