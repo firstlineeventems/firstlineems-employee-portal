@@ -60,14 +60,15 @@ const supabase = createClient(
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxuZXZ1ZWx3c2lld3hkcm1nY2toIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA3MzMyNjgsImV4cCI6MjA4NjMwOTI2OH0.voDpAvnscFh9-e70-xV4UBxtcO-TwYbU6V0JRPUFFIs"
 );
 
-const esc = s => String(s).replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"}[m]));
-
+const esc = s => String(s ?? "").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"}[m]));
 const debug = msg => document.getElementById("debug").textContent = msg;
+
 debug("JS loaded ✅");
 
 let CURRENT_USER = null;
 let IS_ADMIN = false;
 
+// ===== helpers =====
 async function getUser() {
   const { data } = await supabase.auth.getSession();
   return data?.session?.user;
@@ -82,7 +83,27 @@ async function checkAdmin(userId) {
   return !!data?.is_admin;
 }
 
-/* LOGIN */
+// Monday-start week helpers
+function startOfWeek(d) {
+  const date = new Date(d);
+  const day = (date.getDay() + 6) % 7; // Mon=0 ... Sun=6
+  date.setHours(0,0,0,0);
+  date.setDate(date.getDate() - day);
+  return date;
+}
+function addDays(d, n) {
+  const x = new Date(d);
+  x.setDate(x.getDate() + n);
+  return x;
+}
+function fmtDay(d) {
+  return d.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
+}
+function fmtTime(d) {
+  return d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+}
+
+// ===== auth UI =====
 loginBtn.onclick = async () => {
   loginError.textContent = "";
   const { data, error } = await supabase.auth.signInWithPassword({
@@ -106,13 +127,13 @@ async function showPortal(user) {
   portal.classList.remove("hidden");
   userEmail.textContent = user.email;
 
-  if (!IS_ADMIN) apprBtn.style.display = "none";
-  else apprBtn.style.display = "inline-block";
+  // hide approvals for non-admins
+  apprBtn.style.display = IS_ADMIN ? "inline-block" : "none";
 
   await showSchedule();
 }
 
-/* SCHEDULING */
+// ===== Scheduling (list) =====
 async function showSchedule() {
   content.innerHTML = `
     <h3>Scheduling</h3>
@@ -120,11 +141,25 @@ async function showSchedule() {
     ${IS_ADMIN ? `
     <div class="card">
       <h4>Post Shift</h4>
-      <input id="stitle" placeholder="Title" />
-      <input id="sstart" type="datetime-local" />
-<input id="send" type="datetime-local" />
-      <input id="swhere" placeholder="Where" />
-      <button id="postBtn">Post</button>
+      <div class="row" style="align-items:flex-end;">
+        <div style="flex:1; min-width:180px;">
+          <div style="font-weight:700; margin-bottom:6px;">Title</div>
+          <input id="stitle" placeholder="Title" style="width:100%;" />
+        </div>
+        <div style="flex:1; min-width:180px;">
+          <div style="font-weight:700; margin-bottom:6px;">Start</div>
+          <input id="sstart" type="datetime-local" style="width:100%;" />
+        </div>
+        <div style="flex:1; min-width:180px;">
+          <div style="font-weight:700; margin-bottom:6px;">End</div>
+          <input id="send" type="datetime-local" style="width:100%;" />
+        </div>
+        <div style="flex:1; min-width:180px;">
+          <div style="font-weight:700; margin-bottom:6px;">Where</div>
+          <input id="swhere" placeholder="Where" style="width:100%;" />
+        </div>
+      </div>
+      <button id="postBtn" style="margin-top:12px;">Post</button>
       <div id="perr" class="error"></div>
     </div>` : ``}
 
@@ -132,43 +167,99 @@ async function showSchedule() {
   `;
 
   if (IS_ADMIN) {
-  postBtn.onclick = async () => {
-    const { error } = await supabase.from("shifts").insert({
-      title: stitle.value,
-      start_time: sstart.value,
-      end_time: send.value,
-      shift_where: swhere.value,
-      created_by: CURRENT_USER.id
-    });
+    postBtn.onclick = async () => {
+      perr.textContent = "";
 
-    if (error) {
-      perr.textContent = error.message;
-      return;
-    }
+      if (!stitle.value.trim() || !sstart.value || !send.value) {
+        perr.textContent = "Enter a title, start, and end time.";
+        return;
+      }
 
-    function startOfWeek(d) {
-  // Monday start
-  const date = new Date(d);
-  const day = (date.getDay() + 6) % 7; // Mon=0 ... Sun=6
-  date.setHours(0,0,0,0);
-  date.setDate(date.getDate() - day);
-  return date;
+      const { error } = await supabase.from("shifts").insert({
+        title: stitle.value.trim(),
+        start_time: sstart.value,
+        end_time: send.value,
+        shift_where: swhere.value.trim(),
+        created_by: CURRENT_USER.id
+      });
+
+      if (error) {
+        perr.textContent = error.message;
+        return;
+      }
+
+      // clear form
+      stitle.value = "";
+      sstart.value = "";
+      send.value = "";
+      swhere.value = "";
+
+      await loadShifts();
+    };
+  }
+
+  await loadShifts();
 }
 
-function addDays(d, n) {
-  const x = new Date(d);
-  x.setDate(x.getDate() + n);
-  return x;
+async function loadShifts() {
+  const { data, error } = await supabase
+    .from("shifts")
+    .select("*")
+    .is("filled_by", null)
+    .order("start_time", { ascending: true });
+
+  if (error) {
+    content.innerHTML += `<div class="error">${esc(error.message)}</div>`;
+    return;
+  }
+
+  list.innerHTML = (data || []).map(s => `
+    <div class="card">
+      <b>${esc(s.title)}</b><br>
+      ${s.start_time ? new Date(s.start_time).toLocaleString() : ""}${s.end_time ? ` – ${new Date(s.end_time).toLocaleString()}` : ""}<br>
+      ${s.shift_where ? `<span class="pill">${esc(s.shift_where)}</span><br><br>` : `<br>`}
+      <button onclick="claim('${s.id}')">Claim</button>
+    </div>
+  `).join("") || `<div class="pill" style="margin-top:12px; display:inline-block;">No shifts posted yet</div>`;
 }
 
-function fmtDay(d) {
-  return d.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
-}
+// ===== Claim (double-claim protected) =====
+window.claim = async (id) => {
+  // Check if a pending claim already exists
+  const { data: existing, error: exErr } = await supabase
+    .from("shift_claims")
+    .select("id")
+    .eq("shift_id", id)
+    .eq("status", "pending")
+    .limit(1);
 
-function fmtTime(d) {
-  return d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
-}
+  if (exErr) {
+    alert("Error checking claims: " + exErr.message);
+    return;
+  }
 
+  if (existing && existing.length > 0) {
+    alert("This shift already has a pending claim.");
+    return;
+  }
+
+  const { error } = await supabase.from("shift_claims").insert({
+    shift_id: id,
+    user_id: CURRENT_USER.id,
+    user_email: CURRENT_USER.email,
+    status: "pending"
+  });
+
+  if (error) {
+    alert(error.message);
+    return;
+  }
+
+  alert("Claim sent for approval.");
+  await loadShifts();
+};
+
+// ===== Calendar (weekly) =====
 async function showCalendarWeek(weekOffset = 0) {
   const base = startOfWeek(new Date());
   const weekStart = addDays(base, weekOffset * 7);
@@ -205,7 +296,6 @@ async function showCalendarWeek(weekOffset = 0) {
   const calGrid = document.getElementById("calGrid");
   const calErr = document.getElementById("calErr");
 
-  // Pull shifts for this week
   const { data, error } = await supabase
     .from("shifts")
     .select("*")
@@ -218,7 +308,6 @@ async function showCalendarWeek(weekOffset = 0) {
     return;
   }
 
-  // Build 7 day columns
   const days = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
 
   days.forEach((dayDate, i) => {
@@ -263,11 +352,7 @@ async function showCalendarWeek(weekOffset = 0) {
         </div>
         ${s.shift_where ? `<div style="color:#666; margin-top:2px;">${esc(s.shift_where)}</div>` : ``}
         <div style="margin-top:8px;">
-          ${
-            filled
-              ? `<span class="pill">Filled</span>`
-              : `<button onclick="claim('${s.id}')">Claim</button>`
-          }
+          ${filled ? `<span class="pill">Filled</span>` : `<button onclick="claim('${s.id}')">Claim</button>`}
         </div>
       `;
 
@@ -275,109 +360,97 @@ async function showCalendarWeek(weekOffset = 0) {
     });
   });
 
-  // Mobile: stack columns vertically
   if (window.innerWidth < 850) {
     calGrid.style.gridTemplateColumns = "1fr";
   }
 }
 
-    // clear form
-    stitle.value = "";
-    sstart.value = "";
-    send.value = "";
-    swhere.value = "";
-
-    loadShifts();
-  };
-}
-
-  loadShifts();
-}
-
-async function loadShifts() {
-  const { data } = await supabase
+// ===== My Shifts =====
+myBtn.onclick = async () => {
+  const { data, error } = await supabase
     .from("shifts")
     .select("*")
-    .is("filled_by", null)
-    .order("created_at", { ascending: false });
-
-  list.innerHTML = data.map(s => `
-    <div class="card">
-      <b>${esc(s.title)}</b><br>
-      ${new Date(s.start_time).toLocaleString()} – ${new Date(s.end_time).toLocaleString()}<br>
-      <button onclick="claim('${s.id}')">Claim</button>
-    </div>
-  `).join("");
-}
-
-window.claim = async id => {
-  // Check if a pending claim already exists
-  const { data: existing } = await supabase
-    .from("shift_claims")
-    .select("id")
-    .eq("shift_id", id)
-    .eq("status", "pending")
-    .limit(1);
-
-  if (existing && existing.length > 0) {
-    alert("This shift already has a pending claim.");
-    return;
-  }
-
-  const { error } = await supabase.from("shift_claims").insert({
-    shift_id: id,
-    user_id: CURRENT_USER.id,
-    user_email: CURRENT_USER.email,
-    status: "pending"
-  });
+    .eq("filled_by", CURRENT_USER.id)
+    .order("start_time", { ascending: true });
 
   if (error) {
-    alert(error.message);
+    content.innerHTML = `<div class="error">${esc(error.message)}</div>`;
     return;
   }
 
-  alert("Claim sent for approval.");
-  loadShifts(); // refresh so button disappears if you want
+  content.innerHTML = `
+    <h3>My Shifts</h3>
+    ${data.length
+      ? data.map(s => `
+        <div class="card">
+          <b>${esc(s.title)}</b><br>
+          ${s.start_time ? new Date(s.start_time).toLocaleString() : ""}${s.end_time ? ` – ${new Date(s.end_time).toLocaleString()}` : ""}<br>
+          ${s.shift_where ? `<span class="pill">${esc(s.shift_where)}</span>` : ``}
+          <div class="pill" style="margin-top:10px; display:inline-block;">Assigned ✅</div>
+        </div>
+      `).join("")
+      : `<div class="pill" style="margin-top:12px; display:inline-block;">No assigned shifts yet</div>`
+    }
+  `;
 };
 
-/* MY SHIFTS */
-myBtn.onclick = async () => {
-  const { data } = await supabase
-    .from("shifts")
-    .select("*")
-    .eq("filled_by", CURRENT_USER.id);
-
-  content.innerHTML = data.length
-    ? data.map(s => `<div class="card">${esc(s.title)} ✔</div>`).join("")
-    : `<div class="pill">No assigned shifts</div>`;
-};
-
-/* APPROVALS */
+// ===== Approvals =====
 apprBtn.onclick = async () => {
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("shift_claims")
-    .select("id,user_id,user_email,shift_id,shifts(title)")
-    .eq("status","pending");
+    .select("id,user_id,user_email,shift_id,status,shifts(title,start_time,end_time,shift_where)")
+    .eq("status", "pending")
+    .order("created_at", { ascending: false });
 
-  content.innerHTML = data.map(c => `
-    <div class="card">
-      ${esc(c.shifts.title)} — ${esc(c.user_email)}
-      <button onclick="approve('${c.id}','${c.shift_id}','${c.user_id}')">Approve</button>
-    </div>
-  `).join("");
+  if (error) {
+    content.innerHTML = `<div class="error">${esc(error.message)}</div>`;
+    return;
+  }
+
+  content.innerHTML = `
+    <h3>Approvals</h3>
+    ${data.length ? data.map(c => `
+      <div class="card">
+        <b>${esc(c.shifts?.title || "Shift")}</b><br>
+        ${c.shifts?.start_time ? new Date(c.shifts.start_time).toLocaleString() : ""}${c.shifts?.end_time ? ` – ${new Date(c.shifts.end_time).toLocaleString()}` : ""}<br>
+        ${c.shifts?.shift_where ? `<span class="pill">${esc(c.shifts.shift_where)}</span><br><br>` : `<br>`}
+        Claimed by: <b>${esc(c.user_email || c.user_id)}</b><br><br>
+        <button onclick="approve('${c.id}','${c.shift_id}','${c.user_id}')">Approve</button>
+        <button class="secondary" onclick="deny('${c.id}')">Deny</button>
+      </div>
+    `).join("") : `<div class="pill" style="margin-top:12px; display:inline-block;">No pending claims</div>`}
+  `;
 };
 
-window.approve = async (cid,sid,uid) => {
-  await supabase.from("shift_claims").update({ status:"approved" }).eq("id",cid);
-  await supabase.from("shifts").update({ filled_by:uid }).eq("id",sid);
+window.approve = async (cid, sid, uid) => {
+  const { error: e1 } = await supabase.from("shift_claims").update({ status: "approved" }).eq("id", cid);
+  if (e1) return alert(e1.message);
+
+  const { error: e2 } = await supabase.from("shifts").update({ filled_by: uid }).eq("id", sid);
+  if (e2) return alert(e2.message);
+
   apprBtn.onclick();
 };
 
-annBtn.onclick = () => content.innerHTML = `<p>No announcements</p>`;
-schedBtn.onclick = showSchedule;
-  calBtn.onclick = () => showCalendarWeek(0);
+window.deny = async (cid) => {
+  const { error } = await supabase.from("shift_claims").update({ status: "denied" }).eq("id", cid);
+  if (error) return alert(error.message);
+  apprBtn.onclick();
+};
 
-/* AUTO LOGIN */
+// ===== Announcements =====
+annBtn.onclick = () => {
+  content.innerHTML = `
+    <h3>Announcements</h3>
+    <div class="pill" style="margin-top:12px; display:inline-block;">No announcements yet</div>
+  `;
+};
+
+// ===== Nav wiring =====
+schedBtn.onclick = showSchedule;
+calBtn.onclick = () => showCalendarWeek(0);
+
+// ===== Auto login =====
 const user = await getUser();
 if (user) await showPortal(user);
 </script>
