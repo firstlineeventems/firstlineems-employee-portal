@@ -1,211 +1,42 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8" />
-<title>First Line EMS Employee Portal</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<style>
-:root{
-  --bg:#f6f7fb;
-  --card:#ffffff;
-  --text:#111827;
-  --muted:#6b7280;
-  --line:#e5e7eb;
-  --shadow:0 10px 25px rgba(0,0,0,.07);
-  --brand:#0f172a;
-  --brand2:#111827;
-  --accent:#2563eb;
-  --accent2:#1d4ed8;
-  --danger:#b00020;
-  --ok:#0f766e;
-  --warn:#b45309;
-}
-*{box-sizing:border-box}
-body { font-family: system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif; background:var(--bg); margin:0; color:var(--text); }
-.container { max-width:980px; margin:40px auto; padding:20px; }
-.card { background:var(--card); border-radius:16px; padding:22px; box-shadow:var(--shadow); border:1px solid var(--line); }
-.hidden { display:none; }
-.row { display:flex; gap:12px; flex-wrap:wrap; align-items:center; }
-button {
-  padding:12px 16px; border-radius:12px; border:1px solid transparent;
-  background:linear-gradient(180deg,var(--brand),var(--brand2));
-  color:#fff; font-weight:900; cursor:pointer;
-  box-shadow:0 10px 18px rgba(17,24,39,.14);
-}
-button.secondary { background:#fff; color:var(--text); border-color:var(--line); box-shadow:none; font-weight:900; }
-button.danger { background:linear-gradient(180deg,#b00020,#8a0018); }
-button:disabled { opacity:.55; cursor:not-allowed; box-shadow:none; }
-
-input, textarea, select {
-  padding:11px 12px; border-radius:12px; border:1px solid var(--line);
-  background:#fff; color:var(--text); outline:none;
-}
-input:focus, textarea:focus, select:focus{ border-color:rgba(37,99,235,.45); box-shadow:0 0 0 4px rgba(37,99,235,.12); }
-textarea { width:100%; min-height:92px; resize:vertical; }
-
-.error { color:var(--danger); font-weight:800; margin-top:8px; }
-.pill {
-  background:#f3f4f6; padding:6px 12px; border-radius:999px; font-size:13px; font-weight:1000;
-  border:1px solid var(--line); display:inline-flex; align-items:center; gap:8px;
-}
-.pill.ok { background:rgba(15,118,110,.08); border-color:rgba(15,118,110,.25); color:var(--ok); }
-.pill.blue { background:rgba(37,99,235,.08); border-color:rgba(37,99,235,.25); color:var(--accent2); }
-.pill.warn { background:rgba(180,83,9,.10); border-color:rgba(180,83,9,.25); color:var(--warn); }
-
-.debug { font-weight:900; margin-top:10px; color:var(--muted); }
-hr { border:none; border-top:1px solid var(--line); margin:16px 0; }
-.small { color:var(--muted); font-size:13px; }
-.noteBox { margin-top:10px; padding:12px; border:1px solid var(--line); border-radius:14px; background:#fafafa; }
-.noteTitle { font-weight:1000; margin-bottom:6px; }
-label { font-weight:1000; display:block; margin:10px 0 6px; color:#111827; }
-h2,h3,h4{margin:0 0 10px 0}
-h3{margin-top:6px}
-a{color:var(--accent); text-decoration:none; font-weight:1000}
-a:hover{text-decoration:underline}
-
-.topbar{
-  display:flex; justify-content:space-between; align-items:center; gap:14px;
-  margin-bottom:14px;
-}
-.brand{display:flex; gap:12px; align-items:center;}
-.logo{
-  width:40px; height:40px; border-radius:14px;
-  background:radial-gradient(circle at 30% 30%, #60a5fa, #1d4ed8);
-  box-shadow:0 10px 20px rgba(37,99,235,.20);
-}
-.brandTitle{display:flex; flex-direction:column; gap:2px}
-.brandTitle .name{font-weight:1000; letter-spacing:.2px}
-.brandTitle .tag{font-size:13px; color:var(--muted); font-weight:800}
-
-.nav{display:flex; gap:10px; flex-wrap:wrap; margin-top:10px;}
-.nav button{
-  background:#fff; border:1px solid var(--line); color:var(--text); box-shadow:none; font-weight:1000;
-}
-.nav button.active{
-  border-color:rgba(37,99,235,.35);
-  box-shadow:0 0 0 4px rgba(37,99,235,.10);
-}
-.sectionCard{margin-top:14px; border-radius:16px;}
-.grid5{
-  display:grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap:12px;
-  align-items:end;
-}
-.linkRow{
-  display:flex; gap:14px; flex-wrap:wrap; margin-top:10px;
-}
-.linkRow a{
-  display:inline-flex; align-items:center; gap:8px;
-  padding:10px 12px; border:1px solid var(--line); border-radius:12px;
-  background:#fff; box-shadow:none; font-weight:1000;
-}
-
-/* Users table */
-.tableWrap{margin-top:12px; overflow:auto; border:1px solid var(--line); border-radius:14px; background:#fff;}
-.table{width:100%; border-collapse:separate; border-spacing:0; min-width:880px;}
-.table th, .table td{padding:10px 12px; border-bottom:1px solid var(--line); font-size:14px; text-align:left; vertical-align:top;}
-.table th{background:#f9fafb; font-weight:1000;}
-.table tr:last-child td{border-bottom:none;}
-.table td select{width:100%;}
-.cb{width:18px; height:18px;}
-
-@media (max-width: 900px){
-  .grid5{grid-template-columns: 1fr 1fr}
-  .container{margin:20px auto}
-}
-</style>
-</head>
-<body>
-
-<div class="container">
-
-<!-- LOGIN -->
-<div id="login" class="card">
-  <div class="topbar">
-    <div class="brand">
-      <div class="logo"></div>
-      <div class="brandTitle">
-        <div class="name">First Line EMS</div>
-        <div class="tag">Employee Portal</div>
-      </div>
-    </div>
-    <span class="pill blue">Secure Login</span>
-  </div>
-
-  <h2>Sign in</h2>
-  <div class="small">Use your employee account email + password.</div>
-
-  <div style="height:10px"></div>
-
-  <label for="email">Email</label>
-  <input id="email" placeholder="Email" autocomplete="username" style="width:100%;" />
-
-  <label for="password">Password</label>
-  <input id="password" type="password" placeholder="Password" autocomplete="current-password" style="width:100%;" />
-
-  <div style="height:12px"></div>
-  <div class="row">
-    <button id="loginBtn">Login</button>
-    <span id="debug" class="debug"></span>
-  </div>
-  <div id="loginError" class="error"></div>
-</div>
-
-<!-- PORTAL -->
-<div id="portal" class="card hidden">
-  <div class="topbar">
-    <div class="brand">
-      <div class="logo"></div>
-      <div class="brandTitle">
-        <div class="name">First Line EMS</div>
-        <div class="tag">Employee Portal</div>
-      </div>
-    </div>
-
-    <div class="row">
-      <span id="userEmail" class="pill"></span>
-      <button id="logoutBtn" class="secondary">Logout</button>
-    </div>
-  </div>
-
-  <div class="nav">
-    <button id="schedBtn">Scheduling</button>
-    <button id="calBtn">Calendar</button>
-    <button id="myBtn">My Requests / Shifts</button>
-    <button id="annBtn">Announcements</button>
-    <button id="apprBtn">Approvals</button>
-<<<<<<< Updated upstream
-    <button id="usersBtn">Users</button>
-=======
-<button id="usersBtn">Users</button>
->>>>>>> Stashed changes
-  </div>
-
-  <div id="content"></div>
-</div>
-
-</div>
-
 <script type="module">
-import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const supabase = createClient(
   "https://lnevuelwsiewxdrmgckh.supabase.co",
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxuZXZ1ZWx3c2lld3hkcm1nY2toIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA3MzMyNjgsImV4cCI6MjA4NjMwOTI2OH0.voDpAvnscFh9-e70-xV4UBxtcO-TwYbU6V0JRPUFFIs"
 );
 
-const esc = s => String(s ?? "").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"}[m]));
-const debug = msg => document.getElementById("debug").textContent = msg;
+const esc = (s) =>
+  String(s ?? "").replace(/[&<>"']/g, (m) => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    "\"": "&quot;",
+    "'": "&#039;"
+  }[m]));
+
+const debug = (msg) => {
+  const el = document.getElementById("debug");
+  if (el) el.textContent = msg;
+};
 debug("JS loaded ✅");
 
 let CURRENT_USER = null;
 let IS_ADMIN = false;
-let MY_CREDS = { role: null, is_driver: false };
+let MY_CREDS = { role: null };
 
 // ===== nav active state =====
-function setActiveNav(btn){
-  [schedBtn, calBtn, myBtn, annBtn, apprBtn, usersBtn].forEach(b => b.classList.remove("active"));
+function setActiveNav(btn) {
+  const all = [
+    typeof schedBtn !== "undefined" ? schedBtn : null,
+    typeof calBtn !== "undefined" ? calBtn : null,
+    typeof myBtn !== "undefined" ? myBtn : null,
+    typeof annBtn !== "undefined" ? annBtn : null,
+    typeof apprBtn !== "undefined" ? apprBtn : null,
+    typeof usersBtn !== "undefined" ? usersBtn : null
+  ].filter(Boolean);
+
+  all.forEach(b => b.classList.remove("active"));
   if (btn) btn.classList.add("active");
 }
 
@@ -224,22 +55,20 @@ async function checkAdmin(userId) {
   return !!data?.is_admin;
 }
 
-// pull role + driver flag
+// pull role only
 async function loadMyCreds(userId) {
   const { data } = await supabase
     .from("user_roles")
-    .select("role,is_driver")
+    .select("role")
     .eq("user_id", userId)
     .single();
-  return {
-    role: data?.role ?? null,
-    is_driver: !!data?.is_driver
-  };
+  return { role: data?.role ?? null };
 }
 
 function fmtDT(dt) {
   if (!dt) return "";
-  try { return new Date(dt).toLocaleString(); } catch { return String(dt); }
+  try { return new Date(dt).toLocaleString(); }
+  catch { return String(dt); }
 }
 
 function toLocalInputValue(isoOrValue) {
@@ -248,7 +77,7 @@ function toLocalInputValue(isoOrValue) {
   if (isNaN(d.getTime())) return "";
   const pad = (n) => String(n).padStart(2, "0");
   const yyyy = d.getFullYear();
-  const mm = pad(d.getMonth()+1);
+  const mm = pad(d.getMonth() + 1);
   const dd = pad(d.getDate());
   const hh = pad(d.getHours());
   const mi = pad(d.getMinutes());
@@ -258,8 +87,8 @@ function toLocalInputValue(isoOrValue) {
 // Monday-start week helpers
 function startOfWeek(d) {
   const date = new Date(d);
-  const day = (date.getDay() + 6) % 7;
-  date.setHours(0,0,0,0);
+  const day = (date.getDay() + 6) % 7; // Mon=0 ... Sun=6
+  date.setHours(0, 0, 0, 0);
   date.setDate(date.getDate() - day);
   return date;
 }
@@ -282,7 +111,7 @@ function renderNotesBox(notes) {
   return `
     <div class="noteBox">
       <div class="noteTitle">Notes</div>
-      <div>${esc(n).replace(/\\n/g,"<br>")}</div>
+      <div>${esc(n).replace(/\n/g, "<br>")}</div>
     </div>
   `;
 }
@@ -292,11 +121,13 @@ function renderEventMapLink(url) {
   if (!u) return "";
   return `<a href="${esc(u)}" target="_blank" rel="noopener">🗺️ Event Map</a>`;
 }
+
 function renderDirectionsLinkFromUrl(url) {
   const u = (url || "").trim();
   if (!u) return "";
   return `<a href="${esc(u)}" target="_blank" rel="noopener">🧭 Directions</a>`;
 }
+
 function renderLinkRow(mapUrl, directionsUrl) {
   const a = [];
   const map = renderEventMapLink(mapUrl);
@@ -310,20 +141,17 @@ function renderLinkRow(mapUrl, directionsUrl) {
 // ===== requirements / gating =====
 function reqPills(s) {
   const pills = [];
-  if (s.required_role) pills.push(`<span class="pill warn">Req: ${esc(s.required_role)}</span>`);
-  if (s.requires_driver) pills.push(`<span class="pill warn">Driver required</span>`);
+  if (s?.required_role) pills.push(`<span class="pill warn">Req: ${esc(s.required_role)}</span>`);
   return pills.length ? `<div class="row" style="margin-top:10px;">${pills.join("")}</div>` : "";
 }
+
 function canUserClaimShift(s) {
-  if (s.required_role) {
+  if (s?.required_role) {
     const need = String(s.required_role).trim().toLowerCase();
     const have = String(MY_CREDS.role || "").trim().toLowerCase();
-    if (!have || have !== need) return { ok:false, reason:`Requires ${s.required_role}` };
+    if (!have || have !== need) return { ok: false, reason: `Requires ${s.required_role}` };
   }
-  if (s.requires_driver && !MY_CREDS.is_driver) {
-    return { ok:false, reason:"Driver required" };
-  }
-  return { ok:true, reason:"" };
+  return { ok: true, reason: "" };
 }
 
 // ===== share text =====
@@ -333,10 +161,7 @@ function buildShiftShareText(s) {
   parts.push(`When: ${fmtDT(s.start_time)}${s.end_time ? " – " + fmtDT(s.end_time) : ""}`);
   if (s.shift_where) parts.push(`Where: ${s.shift_where}`);
 
-  const reqBits = [];
-  if (s.required_role) reqBits.push(`Role: ${s.required_role}`);
-  if (s.requires_driver) reqBits.push(`Driver required`);
-  if (reqBits.length) parts.push(`Requirements: ${reqBits.join(" • ")}`);
+  if (s.required_role) parts.push(`Requirements: Role: ${s.required_role}`);
 
   if (s.google_map_url) parts.push(`Event Map: ${s.google_map_url}`);
   if (s.directions_url) parts.push(`Directions: ${s.directions_url}`);
@@ -350,7 +175,6 @@ function buildShiftShareText(s) {
 
   parts.push("");
   parts.push("Claim in the portal if you can cover.");
-
   return parts.join("\n");
 }
 
@@ -384,7 +208,7 @@ window.copyShiftShare = async (shiftObjJson) => {
   alert(ok ? "Copied shift message ✅" : "Copy failed — your browser blocked clipboard access.");
 };
 
-// ===== AUTH UI =====
+// ===== auth UI =====
 loginBtn.onclick = async () => {
   loginError.textContent = "";
   const { data, error } = await supabase.auth.signInWithPassword({
@@ -410,271 +234,10 @@ async function showPortal(user) {
   userEmail.textContent = user.email;
 
   apprBtn.style.display = IS_ADMIN ? "inline-block" : "none";
-<<<<<<< Updated upstream
-  usersBtn.style.display = IS_ADMIN ? "inline-block" : "none";
-=======
-usersBtn.style.display = IS_ADMIN ? "inline-block" : "none";
->>>>>>> Stashed changes
+  if (typeof usersBtn !== "undefined") usersBtn.style.display = IS_ADMIN ? "inline-block" : "none";
 
   await showSchedule();
 }
-// ===== Users (admin) =====
-async function callAdminUsers(payload) {
-  const { data: sessionData } = await supabase.auth.getSession();
-  const token = sessionData?.session?.access_token;
-  if (!token) throw new Error("Not logged in.");
-
-  const url = "https://lnevuelwsiewxdrmgckh.supabase.co/functions/v1/admin_users";
-
-  const res = await fetch(url, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": "Bearer " + token,
-    },
-    body: JSON.stringify(payload),
-  });
-
-  const out = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(out?.error || "Request failed");
-  return out;
-}
-
-async function showUsers() {
-  if (!IS_ADMIN) return alert("Admins only.");
-  setActiveNav(usersBtn);
-
-  content.innerHTML = `
-    <div class="row" style="justify-content:space-between; align-items:flex-end;">
-      <div>
-        <h3>Users</h3>
-        <div class="small">Create users, set roles, reset passwords, and remove users.</div>
-      </div>
-      <span class="pill blue">Admin</span>
-    </div>
-
-    <div class="card sectionCard">
-      <h4>Create User</h4>
-      <div class="row">
-        <div style="flex:1; min-width:240px;">
-          <label>Email</label>
-          <input id="newUEmail" placeholder="name@email.com" style="width:100%;" />
-        </div>
-        <div style="flex:1; min-width:220px;">
-          <label>Temp Password</label>
-          <input id="newUPass" placeholder="Temporary password" style="width:100%;" />
-        </div>
-      </div>
-
-      <div class="row" style="margin-top:10px;">
-        <div style="flex:1; min-width:220px;">
-          <label>Role</label>
-          <select id="newURole" style="width:100%;">
-            <option value="">None</option>
-            <option value="EMT">EMT</option>
-            <option value="EMR">EMR</option>
-            <option value="Driver">Driver</option>
-            <option value="Supervisor">Supervisor</option>
-          </select>
-        </div>
-
-        <div style="flex:1; min-width:220px;">
-          <label style="display:flex; gap:10px; align-items:center; margin-top:28px;">
-            <input id="newUDriver" type="checkbox" style="width:18px; height:18px;" />
-            Driver
-          </label>
-        </div>
-
-        <div style="flex:1; min-width:220px;">
-          <label style="display:flex; gap:10px; align-items:center; margin-top:28px;">
-            <input id="newUAdmin" type="checkbox" style="width:18px; height:18px;" />
-            Admin
-          </label>
-        </div>
-      </div>
-
-      <div class="row" style="margin-top:12px;">
-        <button id="createUserBtn">Create</button>
-        <div id="usersErr" class="error"></div>
-      </div>
-    </div>
-
-    <div class="card sectionCard">
-      <div class="row" style="justify-content:space-between;">
-        <h4 style="margin:0;">All Users</h4>
-        <button class="secondary" id="refreshUsersBtn">Refresh</button>
-      </div>
-      <div id="usersList" style="margin-top:12px; display:grid; gap:12px;"></div>
-    </div>
-  `;
-
-  async function refresh() {
-    usersErr.textContent = "";
-    usersList.innerHTML = `<div class="pill">Loading...</div>`;
-
-    try {
-      const out = await callAdminUsers({ action: "list" });
-      const users = out?.users || [];
-
-      usersList.innerHTML = users.map(u => {
-        const r = u.roles || {};
-        const email = u.email || "";
-        const created = u.created_at ? new Date(u.created_at).toLocaleString() : "";
-        const last = u.last_sign_in_at ? new Date(u.last_sign_in_at).toLocaleString() : "—";
-
-        return `
-          <div class="card" style="box-shadow:none;">
-            <div class="row" style="justify-content:space-between; align-items:flex-start;">
-              <div>
-                <div style="font-weight:1000;">${esc(email)}</div>
-                <div class="small" style="margin-top:6px;">
-                  Created: ${esc(created)} • Last sign-in: ${esc(last)}
-                </div>
-                <div class="row" style="margin-top:10px;">
-                  <span class="pill ${r.is_admin ? "blue" : ""}">Admin: ${r.is_admin ? "Yes" : "No"}</span>
-                  <span class="pill">Role: ${esc(r.role || "None")}</span>
-                  <span class="pill">Driver: ${r.is_driver ? "Yes" : "No"}</span>
-                </div>
-              </div>
-            </div>
-
-            <hr>
-
-            <div class="row">
-              <div style="min-width:200px;">
-                <label>Role</label>
-                <select id="role_${u.id}">
-                  <option value="">None</option>
-                  <option value="EMT">EMT</option>
-                  <option value="EMR">EMR</option>
-                  <option value="Driver">Driver</option>
-                  <option value="Supervisor">Supervisor</option>
-                </select>
-              </div>
-
-              <div style="min-width:160px;">
-                <label style="display:flex; gap:10px; align-items:center; margin-top:28px;">
-                  <input id="drv_${u.id}" type="checkbox" style="width:18px; height:18px;" />
-                  Driver
-                </label>
-              </div>
-
-              <div style="min-width:160px;">
-                <label style="display:flex; gap:10px; align-items:center; margin-top:28px;">
-                  <input id="adm_${u.id}" type="checkbox" style="width:18px; height:18px;" />
-                  Admin
-                </label>
-              </div>
-            </div>
-
-            <div class="row" style="margin-top:12px;">
-              <button class="secondary" onclick="saveUserRoles('${u.id}')">Save Roles</button>
-              <button class="secondary" onclick="resetUserPass('${u.id}')">Reset Password</button>
-              <button class="danger" onclick="deleteUser('${u.id}','${esc(email).replace(/'/g,"&#039;")}')">Delete</button>
-            </div>
-
-            <div class="small" style="margin-top:8px;">
-              Reset Password sets a new temp password you choose (you’ll be prompted).
-            </div>
-          </div>
-        `;
-      }).join("") || `<div class="pill">No users found</div>`;
-
-      // populate defaults after render
-      users.forEach(u => {
-        const r = u.roles || {};
-        const roleSel = document.getElementById(`role_${u.id}`);
-        const drv = document.getElementById(`drv_${u.id}`);
-        const adm = document.getElementById(`adm_${u.id}`);
-        if (roleSel) roleSel.value = r.role || "";
-        if (drv) drv.checked = !!r.is_driver;
-        if (adm) adm.checked = !!r.is_admin;
-      });
-    } catch (e) {
-      usersErr.textContent = e.message || String(e);
-      usersList.innerHTML = "";
-    }
-  }
-
-  createUserBtn.onclick = async () => {
-    usersErr.textContent = "";
-    try {
-      const email = (newUEmail.value || "").trim();
-      const password = (newUPass.value || "").trim();
-      const role = (newURole.value || "").trim() || null;
-      const is_driver = !!newUDriver.checked;
-      const is_admin = !!newUAdmin.checked;
-
-      if (!email || !password) {
-        usersErr.textContent = "Email and temp password required.";
-        return;
-      }
-
-      await callAdminUsers({ action: "create", email, password, role, is_driver, is_admin });
-
-      newUEmail.value = "";
-      newUPass.value = "";
-      newURole.value = "";
-      newUDriver.checked = false;
-      newUAdmin.checked = false;
-
-      alert("User created ✅");
-      await refresh();
-    } catch (e) {
-      usersErr.textContent = e.message || String(e);
-    }
-  };
-
-  refreshUsersBtn.onclick = refresh;
-
-  // expose helpers
-  window.saveUserRoles = async (id) => {
-    try {
-      const role = (document.getElementById(`role_${id}`)?.value || "").trim() || null;
-      const is_driver = !!document.getElementById(`drv_${id}`)?.checked;
-      const is_admin = !!document.getElementById(`adm_${id}`)?.checked;
-
-      await callAdminUsers({
-        action: "update",
-        id,
-        roles: { role, is_driver, is_admin }
-      });
-
-      alert("Roles updated ✅");
-      await refresh();
-    } catch (e) {
-      alert(e.message || String(e));
-    }
-  };
-
-  window.resetUserPass = async (id) => {
-    const pw = prompt("Enter a NEW temp password for this user:");
-    if (!pw) return;
-
-    try {
-      await callAdminUsers({ action: "update", id, password: pw });
-      alert("Password reset ✅ (give them the temp password)");
-    } catch (e) {
-      alert(e.message || String(e));
-    }
-  };
-
-  window.deleteUser = async (id, email) => {
-    if (!confirm(`Delete user?\n\n${email}\n\nThis removes their account.`)) return;
-
-    try {
-      await callAdminUsers({ action: "delete", id });
-      alert("User deleted ✅");
-      await refresh();
-    } catch (e) {
-      alert(e.message || String(e));
-    }
-  };
-
-  await refresh();
-}
-
-usersBtn.onclick = showUsers;
 
 // ===== Core data helpers for slots / claims =====
 async function getApprovedCountsForShiftIds(shiftIds) {
@@ -705,7 +268,7 @@ async function getMyClaimStatusMapForShiftIds(shiftIds) {
     .select("shift_id,status")
     .in("shift_id", shiftIds)
     .eq("user_id", CURRENT_USER.id)
-    .in("status", ["pending","approved","removal_requested"]);
+    .in("status", ["pending", "approved", "removal_requested"]);
 
   if (error) return map;
 
@@ -719,223 +282,6 @@ function slotsText(approvedCount, crewSize) {
   return `${ac}/${cs} filled`;
 }
 
-// ===== USERS (ADMIN) =====
-async function callAdminUsers(body) {
-  // Uses logged-in JWT automatically
-  const { data, error } = await supabase.functions.invoke("admin_users", { body });
-  if (error) throw new Error(error.message);
-  if (data?.error) throw new Error(data.error);
-  return data;
-}
-
-async function showUsers() {
-  if (!IS_ADMIN) return alert("Admins only.");
-  setActiveNav(usersBtn);
-
-  content.innerHTML = `
-    <div class="row" style="justify-content:space-between; align-items:flex-end;">
-      <div>
-        <h3>Users</h3>
-        <div class="small">Create users, set admin/role/driver, reset passwords, and delete.</div>
-      </div>
-      <button id="refreshUsersBtn" class="secondary">Refresh</button>
-    </div>
-
-    <div class="card sectionCard">
-      <h4>Add User</h4>
-
-      <div class="row">
-        <div style="flex:1; min-width:240px;">
-          <label>Email</label>
-          <input id="u_email" placeholder="name@email.com" style="width:100%;" />
-        </div>
-        <div style="flex:1; min-width:240px;">
-          <label>Temp Password</label>
-          <input id="u_pass" placeholder="Temporary password" style="width:100%;" />
-        </div>
-      </div>
-
-      <div class="row" style="margin-top:8px;">
-        <div style="flex:1; min-width:240px;">
-          <label>Role</label>
-          <select id="u_role" style="width:100%;">
-            <option value="">(none)</option>
-            <option value="EMT">EMT</option>
-            <option value="EMR">EMR</option>
-            <option value="Driver">Driver</option>
-            <option value="Supervisor">Supervisor</option>
-          </select>
-        </div>
-
-        <div style="min-width:240px;">
-          <label style="display:flex; gap:10px; align-items:center; margin-top:28px;">
-            <input id="u_driver" type="checkbox" class="cb" />
-            Driver
-          </label>
-          <label style="display:flex; gap:10px; align-items:center; margin-top:10px;">
-            <input id="u_admin" type="checkbox" class="cb" />
-            Admin
-          </label>
-        </div>
-      </div>
-
-      <div class="row" style="margin-top:12px;">
-        <button id="addUserBtn">Create User</button>
-        <div id="u_err" class="error"></div>
-      </div>
-
-      <div class="small" style="margin-top:8px;">
-        Tip: Use “Reset Pass” later to change passwords.
-      </div>
-    </div>
-
-    <div class="row" style="margin-top:14px;">
-      <div style="flex:1; min-width:240px;">
-        <label>Search</label>
-        <input id="u_search" placeholder="Search email..." style="width:100%;" />
-      </div>
-    </div>
-
-    <div id="usersTableWrap" class="tableWrap"></div>
-  `;
-
-  refreshUsersBtn.onclick = loadUsersTable;
-  u_search.oninput = () => loadUsersTable();
-
-  addUserBtn.onclick = async () => {
-    u_err.textContent = "";
-    const email = u_email.value.trim().toLowerCase();
-    const password = u_pass.value.trim();
-    const role = u_role.value || null;
-    const is_driver = !!u_driver.checked;
-    const is_admin = !!u_admin.checked;
-
-    if (!email || !password) {
-      u_err.textContent = "Email + temp password required.";
-      return;
-    }
-
-    try {
-      await callAdminUsers({ action: "create", email, password, role, is_driver, is_admin });
-      u_email.value = "";
-      u_pass.value = "";
-      u_role.value = "";
-      u_driver.checked = false;
-      u_admin.checked = false;
-      await loadUsersTable();
-      alert("User created ✅");
-    } catch (e) {
-      u_err.textContent = e.message || String(e);
-    }
-  };
-
-  await loadUsersTable();
-}
-
-async function loadUsersTable() {
-  const wrap = document.getElementById("usersTableWrap");
-  if (!wrap) return;
-  wrap.innerHTML = `<div class="pill" style="margin:12px;">Loading users…</div>`;
-
-  try {
-    const data = await callAdminUsers({ action: "list" });
-    const users = data.users || [];
-    const q = (document.getElementById("u_search")?.value || "").trim().toLowerCase();
-    const filtered = q ? users.filter(u => String(u.email||"").toLowerCase().includes(q)) : users;
-
-    wrap.innerHTML = `
-      <table class="table">
-        <thead>
-          <tr>
-            <th>Email</th>
-            <th>Role</th>
-            <th>Driver</th>
-            <th>Admin</th>
-            <th>Created</th>
-            <th>Last Sign-in</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${filtered.map(u => `
-            <tr>
-              <td>
-                <div style="font-weight:1000;">${esc(u.email || "")}</div>
-                <div class="small">ID: ${esc(u.id)}</div>
-              </td>
-
-              <td style="min-width:170px;">
-                <select id="role_${esc(u.id)}">
-                  <option value="">(none)</option>
-                  <option value="EMT" ${u.roles?.role==="EMT"?"selected":""}>EMT</option>
-                  <option value="EMR" ${u.roles?.role==="EMR"?"selected":""}>EMR</option>
-                  <option value="Driver" ${u.roles?.role==="Driver"?"selected":""}>Driver</option>
-                  <option value="Supervisor" ${u.roles?.role==="Supervisor"?"selected":""}>Supervisor</option>
-                </select>
-              </td>
-
-              <td><input id="drv_${esc(u.id)}" type="checkbox" class="cb" ${u.roles?.is_driver ? "checked" : ""} /></td>
-              <td><input id="adm_${esc(u.id)}" type="checkbox" class="cb" ${u.roles?.is_admin ? "checked" : ""} /></td>
-
-              <td class="small">${esc(fmtDT(u.created_at))}</td>
-              <td class="small">${esc(fmtDT(u.last_sign_in_at))}</td>
-
-              <td style="min-width:260px;">
-                <button class="secondary" onclick="saveUser('${esc(u.id)}')">Save</button>
-                <button class="secondary" onclick="resetPassPrompt('${esc(u.id)}')">Reset Pass</button>
-                <button class="danger" onclick="deleteUser('${esc(u.id)}','${esc(u.email||"")}')">Delete</button>
-              </td>
-            </tr>
-          `).join("")}
-        </tbody>
-      </table>
-
-      <div class="small" style="margin:12px;">
-        Save updates role/driver/admin. Reset Pass sets a new password. Delete is permanent.
-      </div>
-    `;
-  } catch (e) {
-    wrap.innerHTML = `<div class="error" style="margin:12px;">${esc(e.message || String(e))}</div>`;
-  }
-}
-
-window.saveUser = async (id) => {
-  const role = document.getElementById("role_" + id)?.value || null;
-  const is_driver = !!document.getElementById("drv_" + id)?.checked;
-  const is_admin = !!document.getElementById("adm_" + id)?.checked;
-
-  try {
-    await callAdminUsers({ action: "update", id, roles: { role, is_driver, is_admin } });
-    alert("Saved ✅");
-  } catch (e) {
-    alert("Save failed: " + (e.message || String(e)));
-  }
-};
-
-window.resetPassPrompt = async (id) => {
-  const pw = prompt("Enter NEW password for this user:");
-  if (!pw) return;
-  try {
-    await callAdminUsers({ action: "update", id, password: pw });
-    alert("Password reset ✅");
-  } catch (e) {
-    alert("Reset failed: " + (e.message || String(e)));
-  }
-};
-
-window.deleteUser = async (id, email) => {
-  if (!confirm(`DELETE USER?\n\n${email}\n\nThis cannot be undone.`)) return;
-  try {
-    await callAdminUsers({ action: "delete", id });
-    await loadUsersTable();
-    alert("User deleted ✅");
-  } catch (e) {
-    alert("Delete failed: " + (e.message || String(e)));
-  }
-};
-
-usersBtn.onclick = showUsers;
-
 // ===== Scheduling (list) =====
 async function showSchedule() {
   setActiveNav(schedBtn);
@@ -946,7 +292,7 @@ async function showSchedule() {
         <h3>Scheduling</h3>
         <div class="small">Claim shifts for approval. Approved shifts appear in “My Requests / Shifts”.</div>
         <div class="small" style="margin-top:6px;">
-          Your role: <b>${esc(MY_CREDS.role || "Not set")}</b> • Driver: <b>${MY_CREDS.is_driver ? "Yes" : "No"}</b>
+          Your role: <b>${esc(MY_CREDS.role || "Not set")}</b>
         </div>
       </div>
       <span class="pill blue">${IS_ADMIN ? "Admin" : "Employee"}</span>
@@ -986,15 +332,8 @@ async function showSchedule() {
             <option value="">None</option>
             <option value="EMT">EMT</option>
             <option value="EMR">EMR</option>
-            <option value="Driver">Driver</option>
             <option value="Supervisor">Supervisor</option>
           </select>
-        </div>
-        <div style="flex:1; min-width:240px;">
-          <label style="display:flex; gap:10px; align-items:center; margin-top:28px;">
-            <input id="sdriver" type="checkbox" style="width:18px; height:18px;" />
-            Requires Driver
-          </label>
         </div>
       </div>
 
@@ -1030,7 +369,6 @@ async function showSchedule() {
       const mapUrl = (smap.value || "").trim();
       const dirUrl = (sdir.value || "").trim();
       const requiredRole = (srole.value || "").trim();
-      const requiresDriver = !!sdriver.checked;
 
       if (!title || !startVal || !endVal) {
         perr.textContent = "Enter a title, start, and end time.";
@@ -1047,14 +385,10 @@ async function showSchedule() {
         google_map_url: mapUrl || null,
         directions_url: dirUrl || null,
         required_role: requiredRole || null,
-        requires_driver: requiresDriver,
         created_by: CURRENT_USER.id
       });
 
-      if (error) {
-        perr.textContent = error.message;
-        return;
-      }
+      if (error) { perr.textContent = error.message; return; }
 
       stitle.value = "";
       sstart.value = "";
@@ -1065,7 +399,6 @@ async function showSchedule() {
       smap.value = "";
       sdir.value = "";
       srole.value = "";
-      sdriver.checked = false;
 
       await loadShifts();
     };
@@ -1095,9 +428,7 @@ async function loadShifts() {
     const cs = Math.max(1, Number(s.crew_size || 1));
     const ac = Number(approvedCounts[s.id] || 0);
     const full = ac >= cs;
-
     const mine = myStatus[s.id];
-
     const gate = canUserClaimShift(s);
 
     let claimBtnHtml = "";
@@ -1108,7 +439,6 @@ async function loadShifts() {
     else if (!gate.ok) claimBtnHtml = `<button disabled title="${esc(gate.reason)}">Claim</button><div class="small" style="margin-top:6px;">${esc(gate.reason)}</div>`;
     else claimBtnHtml = `<button onclick="claimShift('${s.id}')">Claim</button>`;
 
-    const notesHtml = renderNotesBox(s.notes);
     const linkRow = renderLinkRow(s.google_map_url, s.directions_url);
 
     const adminBtns = IS_ADMIN ? `
@@ -1123,9 +453,8 @@ async function loadShifts() {
           notes: s.notes,
           google_map_url: s.google_map_url,
           directions_url: s.directions_url,
-          required_role: s.required_role,
-          requires_driver: s.requires_driver
-        })).replace(/"/g,"&quot;")}')">Copy Share</button>
+          required_role: s.required_role
+        })).replace(/"/g, "&quot;")}')">Copy Share</button>
         <button class="danger" onclick="deleteShift('${s.id}')">Delete</button>
       </div>
       <div class="small">Copy Share copies a text message you can paste to staff.</div>
@@ -1153,7 +482,7 @@ async function loadShifts() {
         </div>
 
         ${linkRow}
-        ${notesHtml}
+        ${renderNotesBox(s.notes)}
         ${adminBtns}
       </div>
     `;
@@ -1223,15 +552,8 @@ window.editShift = async (shiftId) => {
             <option value="">None</option>
             <option value="EMT">EMT</option>
             <option value="EMR">EMR</option>
-            <option value="Driver">Driver</option>
             <option value="Supervisor">Supervisor</option>
           </select>
-        </div>
-        <div style="flex:1; min-width:240px;">
-          <label style="display:flex; gap:10px; align-items:center; margin-top:28px;">
-            <input id="edriver" type="checkbox" style="width:18px; height:18px;" />
-            Requires Driver
-          </label>
         </div>
       </div>
 
@@ -1249,40 +571,31 @@ window.editShift = async (shiftId) => {
     </div>
   `;
 
-  document.getElementById("etitle").value = shift.title || "";
-  document.getElementById("estart").value = toLocalInputValue(shift.start_time);
-  document.getElementById("eend").value = toLocalInputValue(shift.end_time);
-  document.getElementById("ewhere").value = shift.shift_where || "";
-  document.getElementById("ecrew").value = String(Math.max(1, Number(shift.crew_size || 1)));
-  document.getElementById("enotes").value = shift.notes || "";
-  document.getElementById("emap").value = shift.google_map_url || "";
-  document.getElementById("edir").value = shift.directions_url || "";
-  document.getElementById("erole").value = shift.required_role || "";
-  document.getElementById("edriver").checked = !!shift.requires_driver;
+  etitle.value = shift.title || "";
+  estart.value = toLocalInputValue(shift.start_time);
+  eend.value = toLocalInputValue(shift.end_time);
+  ewhere.value = shift.shift_where || "";
+  ecrew.value = String(Math.max(1, Number(shift.crew_size || 1)));
+  enotes.value = shift.notes || "";
+  emap.value = shift.google_map_url || "";
+  edir.value = shift.directions_url || "";
+  erole.value = shift.required_role || "";
 
-  document.getElementById("saveShiftBtn").onclick = async () => {
-    const eerr = document.getElementById("eerr");
+  saveShiftBtn.onclick = async () => {
     eerr.textContent = "";
 
-    const title = document.getElementById("etitle").value.trim();
-    const startVal = document.getElementById("estart").value;
-    const endVal = document.getElementById("eend").value;
-    const where = document.getElementById("ewhere").value.trim();
-    const notes = document.getElementById("enotes").value.trim();
-    const crew = Math.max(1, parseInt(document.getElementById("ecrew").value || "1", 10));
-    const mapUrl = (document.getElementById("emap").value || "").trim();
-    const dirUrl = (document.getElementById("edir").value || "").trim();
-    const requiredRole = (document.getElementById("erole").value || "").trim();
-    const requiresDriver = !!document.getElementById("edriver").checked;
+    const title = etitle.value.trim();
+    const startVal = estart.value;
+    const endVal = eend.value;
+    const where = ewhere.value.trim();
+    const notes = enotes.value.trim();
+    const crew = Math.max(1, parseInt(ecrew.value || "1", 10));
+    const mapUrl = (emap.value || "").trim();
+    const dirUrl = (edir.value || "").trim();
+    const requiredRole = (erole.value || "").trim();
 
-    if (!title || !startVal || !endVal) {
-      eerr.textContent = "Title, start, and end are required.";
-      return;
-    }
-    if (crew < approvedCount) {
-      eerr.textContent = `Crew size cannot be less than approved count (${approvedCount}).`;
-      return;
-    }
+    if (!title || !startVal || !endVal) { eerr.textContent = "Title, start, and end are required."; return; }
+    if (crew < approvedCount) { eerr.textContent = `Crew size cannot be less than approved count (${approvedCount}).`; return; }
 
     const { data: updated, error } = await supabase
       .from("shifts")
@@ -1295,17 +608,13 @@ window.editShift = async (shiftId) => {
         notes,
         google_map_url: mapUrl || null,
         directions_url: dirUrl || null,
-        required_role: requiredRole || null,
-        requires_driver: requiresDriver
+        required_role: requiredRole || null
       })
       .eq("id", shiftId)
       .select("id");
 
     if (error) { eerr.textContent = error.message; return; }
-    if (!updated || updated.length === 0) {
-      eerr.textContent = "Update blocked (no rows updated). This is usually an RLS/policy issue.";
-      return;
-    }
+    if (!updated || updated.length === 0) { eerr.textContent = "Update blocked (no rows updated). This is usually an RLS/policy issue."; return; }
 
     alert("Shift updated.");
     await showSchedule();
@@ -1316,7 +625,7 @@ window.editShift = async (shiftId) => {
 window.claimShift = async (shiftId) => {
   const { data: shift, error: sErr } = await supabase
     .from("shifts")
-    .select("id,crew_size,required_role,requires_driver")
+    .select("id,crew_size,required_role")
     .eq("id", shiftId)
     .single();
   if (sErr) return alert(sErr.message);
@@ -1329,7 +638,7 @@ window.claimShift = async (shiftId) => {
     .select("id,status")
     .eq("shift_id", shiftId)
     .eq("user_id", CURRENT_USER.id)
-    .in("status", ["pending","approved","removal_requested"])
+    .in("status", ["pending", "approved", "removal_requested"])
     .limit(1);
 
   if (mineErr) return alert(mineErr.message);
@@ -1389,9 +698,9 @@ async function showMyRequests() {
 
   const { data, error } = await supabase
     .from("shift_claims")
-    .select("id,status,created_at,shift_id,shifts(title,start_time,end_time,shift_where,crew_size,notes,google_map_url,directions_url,required_role,requires_driver)")
+    .select("id,status,created_at,shift_id,shifts(title,start_time,end_time,shift_where,crew_size,notes,google_map_url,directions_url,required_role)")
     .eq("user_id", CURRENT_USER.id)
-    .in("status", ["pending","approved","removal_requested"])
+    .in("status", ["pending", "approved", "removal_requested"])
     .order("created_at", { ascending: false });
 
   if (error) { content.innerHTML = `<div class="error">${esc(error.message)}</div>`; return; }
@@ -1401,7 +710,7 @@ async function showMyRequests() {
   const approved = rows.filter(r => r.status === "approved");
   const removal = rows.filter(r => r.status === "removal_requested");
 
-  const renderShiftCard = (r, badgeHtml, actionHtml="") => `
+  const renderShiftCard = (r, badgeHtml, actionHtml = "") => `
     <div class="card sectionCard">
       <div style="font-weight:1000; font-size:16px;">${esc(r.shifts?.title || "Shift")}</div>
       <div class="small" style="margin-top:6px;">🕒 ${fmtDT(r.shifts?.start_time)}${r.shifts?.end_time ? ` – ${fmtDT(r.shifts.end_time)}` : ""}</div>
@@ -1451,7 +760,7 @@ apprBtn.onclick = async () => {
 
   const { data: pending, error: pErr } = await supabase
     .from("shift_claims")
-    .select("id,user_id,user_email,shift_id,status,created_at,shifts(id,title,start_time,end_time,shift_where,crew_size,notes,google_map_url,directions_url,required_role,requires_driver)")
+    .select("id,user_id,user_email,shift_id,status,created_at,shifts(id,title,start_time,end_time,shift_where,crew_size,notes,google_map_url,directions_url,required_role)")
     .eq("status", "pending")
     .order("created_at", { ascending: false });
 
@@ -1459,20 +768,20 @@ apprBtn.onclick = async () => {
 
   const { data: removal, error: rErr } = await supabase
     .from("shift_claims")
-    .select("id,user_id,user_email,shift_id,status,created_at,shifts(id,title,start_time,end_time,shift_where,crew_size,notes,google_map_url,directions_url,required_role,requires_driver)")
+    .select("id,user_id,user_email,shift_id,status,created_at,shifts(id,title,start_time,end_time,shift_where,crew_size,notes,google_map_url,directions_url,required_role)")
     .eq("status", "removal_requested")
     .order("created_at", { ascending: false });
 
   if (rErr) return content.innerHTML = `<div class="error">${esc(rErr.message)}</div>`;
 
-  const shiftIds = Array.from(new Set([...(pending||[]).map(x=>x.shift_id), ...(removal||[]).map(x=>x.shift_id)]));
+  const shiftIds = Array.from(new Set([...(pending || []).map(x => x.shift_id), ...(removal || []).map(x => x.shift_id)]));
   const approvedCounts = await getApprovedCountsForShiftIds(shiftIds);
 
   content.innerHTML = `
     <h3>Approvals</h3>
 
     <h4>Pending Claims</h4>
-    ${(pending||[]).length ? (pending||[]).map(c => {
+    ${(pending || []).length ? (pending || []).map(c => {
       const s = c.shifts || {};
       const cs = Math.max(1, Number(s.crew_size || 1));
       const ac = Number(approvedCounts[c.shift_id] || 0);
@@ -1502,7 +811,7 @@ apprBtn.onclick = async () => {
     <hr>
 
     <h4>Removal Requests</h4>
-    ${(removal||[]).length ? (removal||[]).map(c => {
+    ${(removal || []).length ? (removal || []).map(c => {
       const s = c.shifts || {};
       const cs = Math.max(1, Number(s.crew_size || 1));
       const ac = Number(approvedCounts[c.shift_id] || 0);
@@ -1519,7 +828,7 @@ apprBtn.onclick = async () => {
           <div style="margin-top:10px;">Employee: <b>${esc(c.user_email || c.user_id)}</b></div>
           <div class="row" style="margin-top:10px;">
             <button onclick="approveRemoval('${c.id}')">Approve Removal</button>
-            <button class="secondary" onclick="denyRemoval('${c.id}')">Deny</button>
+            <button class="secondary" onclick="denyRemoval('${c.id}')">Deny Removal</button>
           </div>
         </div>
       `;
@@ -1687,8 +996,8 @@ async function showCalendarWeek(weekOffset = 0) {
     col.style.border = "1px solid var(--line)";
     col.style.padding = "14px";
 
-    const dayStart = new Date(dayDate); dayStart.setHours(0,0,0,0);
-    const dayEnd = new Date(dayDate); dayEnd.setHours(23,59,59,999);
+    const dayStart = new Date(dayDate); dayStart.setHours(0, 0, 0, 0);
+    const dayEnd = new Date(dayDate); dayEnd.setHours(23, 59, 59, 999);
 
     const dayShifts = shifts.filter(s => {
       const st = new Date(s.start_time);
@@ -1759,6 +1068,228 @@ annBtn.onclick = () => {
   `;
 };
 
+// ===== Users (admin) =====
+async function callAdminUsers(payload) {
+  const { data: sessionData } = await supabase.auth.getSession();
+  const token = sessionData?.session?.access_token;
+  if (!token) throw new Error("Not logged in.");
+
+  const url = "https://lnevuelwsiewxdrmgckh.supabase.co/functions/v1/admin_users";
+
+  const res = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": "Bearer " + token
+    },
+    body: JSON.stringify(payload)
+  });
+
+  const out = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(out?.error || "Request failed");
+  return out;
+}
+
+async function showUsers() {
+  if (!IS_ADMIN) return alert("Admins only.");
+  setActiveNav(usersBtn);
+
+  content.innerHTML = `
+    <div class="row" style="justify-content:space-between; align-items:flex-end;">
+      <div>
+        <h3>Users</h3>
+        <div class="small">Create users, set roles, reset passwords, and remove users.</div>
+      </div>
+      <span class="pill blue">Admin</span>
+    </div>
+
+    <div class="card sectionCard">
+      <h4>Create User</h4>
+      <div class="row">
+        <div style="flex:1; min-width:240px;">
+          <label>Email</label>
+          <input id="newUEmail" placeholder="name@email.com" style="width:100%;" />
+        </div>
+        <div style="flex:1; min-width:220px;">
+          <label>Temp Password</label>
+          <input id="newUPass" placeholder="Temporary password" style="width:100%;" />
+        </div>
+      </div>
+
+      <div class="row" style="margin-top:10px;">
+        <div style="flex:1; min-width:220px;">
+          <label>Role</label>
+          <select id="newURole" style="width:100%;">
+            <option value="">None</option>
+            <option value="EMT">EMT</option>
+            <option value="EMR">EMR</option>
+            <option value="Supervisor">Supervisor</option>
+          </select>
+        </div>
+
+        <div style="flex:1; min-width:220px;">
+          <label style="display:flex; gap:10px; align-items:center; margin-top:28px;">
+            <input id="newUAdmin" type="checkbox" style="width:18px; height:18px;" />
+            Admin
+          </label>
+        </div>
+      </div>
+
+      <div class="row" style="margin-top:12px;">
+        <button id="createUserBtn">Create</button>
+        <div id="usersErr" class="error"></div>
+      </div>
+    </div>
+
+    <div class="card sectionCard">
+      <div class="row" style="justify-content:space-between;">
+        <h4 style="margin:0;">All Users</h4>
+        <button class="secondary" id="refreshUsersBtn">Refresh</button>
+      </div>
+      <div id="usersList" style="margin-top:12px; display:grid; gap:12px;"></div>
+    </div>
+  `;
+
+  async function refresh() {
+    usersErr.textContent = "";
+    usersList.innerHTML = `<div class="pill">Loading...</div>`;
+
+    try {
+      const out = await callAdminUsers({ action: "list" });
+      const users = out?.users || [];
+
+      usersList.innerHTML = users.map(u => {
+        const r = u.roles || {};
+        const email = u.email || "";
+        const created = u.created_at ? new Date(u.created_at).toLocaleString() : "";
+        const last = u.last_sign_in_at ? new Date(u.last_sign_in_at).toLocaleString() : "—";
+
+        return `
+          <div class="card" style="box-shadow:none;">
+            <div style="font-weight:1000;">${esc(email)}</div>
+            <div class="small" style="margin-top:6px;">
+              Created: ${esc(created)} • Last sign-in: ${esc(last)}
+            </div>
+
+            <div class="row" style="margin-top:10px;">
+              <span class="pill ${r.is_admin ? "blue" : ""}">Admin: ${r.is_admin ? "Yes" : "No"}</span>
+              <span class="pill">Role: ${esc(r.role || "None")}</span>
+            </div>
+
+            <hr>
+
+            <div class="row">
+              <div style="min-width:200px;">
+                <label>Role</label>
+                <select id="role_${u.id}">
+                  <option value="">None</option>
+                  <option value="EMT">EMT</option>
+                  <option value="EMR">EMR</option>
+                  <option value="Supervisor">Supervisor</option>
+                </select>
+              </div>
+
+              <div style="min-width:160px;">
+                <label style="display:flex; gap:10px; align-items:center; margin-top:28px;">
+                  <input id="adm_${u.id}" type="checkbox" style="width:18px; height:18px;" />
+                  Admin
+                </label>
+              </div>
+            </div>
+
+            <div class="row" style="margin-top:12px;">
+              <button class="secondary" onclick="saveUserRoles('${u.id}')">Save</button>
+              <button class="secondary" onclick="resetUserPass('${u.id}')">Reset Password</button>
+              <button class="danger" onclick="deleteUser('${u.id}','${esc(email).replace(/'/g, "&#039;")}')">Delete</button>
+            </div>
+
+            <div class="small" style="margin-top:8px;">
+              Reset Password sets a new temp password you choose (you’ll be prompted).
+            </div>
+          </div>
+        `;
+      }).join("") || `<div class="pill">No users found</div>`;
+
+      users.forEach(u => {
+        const r = u.roles || {};
+        const roleSel = document.getElementById(`role_${u.id}`);
+        const adm = document.getElementById(`adm_${u.id}`);
+        if (roleSel) roleSel.value = r.role || "";
+        if (adm) adm.checked = !!r.is_admin;
+      });
+    } catch (e) {
+      usersErr.textContent = e.message || String(e);
+      usersList.innerHTML = "";
+    }
+  }
+
+  createUserBtn.onclick = async () => {
+    usersErr.textContent = "";
+    try {
+      const email = (newUEmail.value || "").trim();
+      const password = (newUPass.value || "").trim();
+      const role = (newURole.value || "").trim() || null;
+      const is_admin = !!newUAdmin.checked;
+
+      if (!email || !password) { usersErr.textContent = "Email and temp password required."; return; }
+
+      await callAdminUsers({ action: "create", email, password, role, is_admin });
+
+      newUEmail.value = "";
+      newUPass.value = "";
+      newURole.value = "";
+      newUAdmin.checked = false;
+
+      alert("User created ✅");
+      await refresh();
+    } catch (e) {
+      usersErr.textContent = e.message || String(e);
+    }
+  };
+
+  refreshUsersBtn.onclick = refresh;
+
+  window.saveUserRoles = async (id) => {
+    try {
+      const role = (document.getElementById(`role_${id}`)?.value || "").trim() || null;
+      const is_admin = !!document.getElementById(`adm_${id}`)?.checked;
+
+      await callAdminUsers({ action: "update", id, roles: { role, is_admin } });
+
+      alert("Updated ✅");
+      await refresh();
+    } catch (e) {
+      alert(e.message || String(e));
+    }
+  };
+
+  window.resetUserPass = async (id) => {
+    const pw = prompt("Enter a NEW temp password for this user:");
+    if (!pw) return;
+    try {
+      await callAdminUsers({ action: "update", id, password: pw });
+      alert("Password reset ✅ (give them the temp password)");
+    } catch (e) {
+      alert(e.message || String(e));
+    }
+  };
+
+  window.deleteUser = async (id, email) => {
+    if (!confirm(`Delete user?\n\n${email}\n\nThis removes their account.`)) return;
+    try {
+      await callAdminUsers({ action: "delete", id });
+      alert("User deleted ✅");
+      await refresh();
+    } catch (e) {
+      alert(e.message || String(e));
+    }
+  };
+
+  await refresh();
+}
+
+if (typeof usersBtn !== "undefined") usersBtn.onclick = showUsers;
+
 // ===== Nav wiring =====
 schedBtn.onclick = showSchedule;
 calBtn.onclick = () => showCalendarWeek(0);
@@ -1767,6 +1298,3 @@ calBtn.onclick = () => showCalendarWeek(0);
 const user = await getUser();
 if (user) await showPortal(user);
 </script>
-
-</body>
-</html>
