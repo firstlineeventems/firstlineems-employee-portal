@@ -666,14 +666,28 @@ window.deleteShift = async (shiftId) => {
   if (!confirm("Delete this shift? This will delete all related claims too.")) return;
 
   // delete claims first (safe)
-  const { error: e1 } = await supabase.from("shift_claims").delete().eq("shift_id", shiftId);
-  if (e1) return alert("Delete claims failed: " + e1.message);
+  const { error: e1 } = await supabase
+  .from("shift_claims")
+  .delete()
+  .eq("shift_id", shiftId);
 
-  const { error: e2 } = await supabase.from("shifts").delete().eq("id", shiftId);
-  if (e2) return alert("Delete shift failed: " + e2.message);
+if (e1) return alert("Delete claims failed: " + e1.message);
 
-  alert("Shift deleted.");
-  await showSchedule();
+  const { data: deletedShift, error: e2 } = await supabase
+  .from("shifts")
+  .delete()
+  .eq("id", shiftId)
+  .select("id");
+
+if (e2) return alert("Delete shift failed: " + e2.message);
+
+if (!deletedShift || deletedShift.length === 0) {
+  alert("Delete blocked (no rows deleted). This is almost always an RLS/policy issue.");
+  return;
+}
+
+alert("Shift deleted.");
+await showSchedule();
 };
 
 // ===== Calendar (weekly) =====
