@@ -1,7 +1,6 @@
 <script type="module">
 (async () => {
   try {
-    // Import Supabase (works on GitHub Pages / Vercel)
     const { createClient } = await import("https://esm.sh/@supabase/supabase-js@2");
 
     const supabase = createClient(
@@ -9,42 +8,44 @@
       "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxuZXZ1ZWx3c2lld3hkcm1nY2toIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA3MzMyNjgsImV4cCI6MjA4NjMwOTI2OH0.voDpAvnscFh9-e70-xV4UBxtcO-TwYbU6V0JRPUFFIs"
     );
 
-    // ----- DOM (IMPORTANT: module scripts don't auto-create globals) -----
-    const login = document.getElementById("login");
-    const portal = document.getElementById("portal");
-    const content = document.getElementById("content");
-
-    const email = document.getElementById("email");
-    const password = document.getElementById("password");
-
-    const loginBtn = document.getElementById("loginBtn");
-    const logoutBtn = document.getElementById("logoutBtn");
-
-    const loginError = document.getElementById("loginError");
-    const debugEl = document.getElementById("debug");
-    const userEmail = document.getElementById("userEmail");
-
-    const schedBtn = document.getElementById("schedBtn");
-    const calBtn = document.getElementById("calBtn");
-    const myBtn = document.getElementById("myBtn");
-    const annBtn = document.getElementById("annBtn");
-    const apprBtn = document.getElementById("apprBtn");
-    const usersBtn = document.getElementById("usersBtn"); // may or may not exist depending on HTML
-
-    if (!login || !portal || !content || !loginBtn || !logoutBtn || !email || !password) {
-      throw new Error("Missing required HTML elements (check button IDs in index.html).");
-    }
+    const $ = (id) => document.getElementById(id);
 
     const esc = s => String(s ?? "").replace(/[&<>"']/g, m => ({
       "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"
     }[m]));
 
     const debug = (msg) => {
-      if (debugEl) debugEl.textContent = msg;
+      const el = $("debug");
+      if (el) el.textContent = msg;
       console.log("[PORTAL]", msg);
     };
 
     debug("JS loaded ✅");
+
+    // ---- Grab ONLY the truly required elements ----
+    const login = $("login");
+    const portal = $("portal");
+    const content = $("content");
+
+    const email = $("email");
+    const password = $("password");
+    const loginBtn = $("loginBtn");
+    const logoutBtn = $("logoutBtn");
+
+    const loginError = $("loginError");
+    const userEmail = $("userEmail");
+
+    if (!login || !portal || !content) throw new Error("Missing #login, #portal, or #content in HTML.");
+    if (!email || !password || !loginBtn) throw new Error("Missing #email, #password, or #loginBtn in HTML.");
+    if (!logoutBtn) throw new Error("Missing #logoutBtn in HTML.");
+
+    // Optional nav buttons (won't crash if missing)
+    const schedBtn = $("schedBtn");
+    const calBtn = $("calBtn");
+    const myBtn = $("myBtn");
+    const annBtn = $("annBtn");
+    const apprBtn = $("apprBtn");
+    const usersBtn = $("usersBtn");
 
     let CURRENT_USER = null;
     let IS_ADMIN = false;
@@ -85,15 +86,6 @@
       try { return new Date(dt).toLocaleString(); } catch { return String(dt); }
     }
 
-    function toLocalInputValue(isoOrValue) {
-      if (!isoOrValue) return "";
-      const d = new Date(isoOrValue);
-      if (isNaN(d.getTime())) return "";
-      const pad = (n) => String(n).padStart(2, "0");
-      return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-    }
-
-    // ===== Links / Notes =====
     function renderNotesBox(notes) {
       const n = (notes || "").trim();
       if (!n) return "";
@@ -115,7 +107,6 @@
       return `<div class="linkRow">${a.join("")}</div>`;
     }
 
-    // ===== claim gating (role only; driver removed) =====
     function reqPills(s) {
       const pills = [];
       if (s.required_role) pills.push(`<span class="pill warn">Req: ${esc(s.required_role)}</span>`);
@@ -131,38 +122,6 @@
       return { ok:true, reason:"" };
     }
 
-    // ===== auth UI =====
-    loginBtn.onclick = async () => {
-      loginError.textContent = "";
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email: email.value,
-        password: password.value
-      });
-      if (error) return (loginError.textContent = error.message);
-      await showPortal(data.user);
-    };
-
-    logoutBtn.onclick = async () => {
-      await supabase.auth.signOut();
-      location.reload();
-    };
-
-    async function showPortal(user) {
-      CURRENT_USER = user;
-      IS_ADMIN = await checkAdmin(user.id);
-      MY_CREDS = await loadMyCreds(user.id);
-
-      login.classList.add("hidden");
-      portal.classList.remove("hidden");
-      if (userEmail) userEmail.textContent = user.email;
-
-      if (apprBtn) apprBtn.style.display = IS_ADMIN ? "inline-block" : "none";
-      if (usersBtn) usersBtn.style.display = IS_ADMIN ? "inline-block" : "none";
-
-      await showSchedule();
-    }
-
-    // ===== shift helpers =====
     async function getApprovedCountsForShiftIds(shiftIds) {
       const map = {};
       shiftIds.forEach(id => map[id] = 0);
@@ -199,18 +158,50 @@
       return `${ac}/${cs} filled`;
     }
 
-    // ===== Scheduling =====
+    // ===== auth =====
+    loginBtn.onclick = async () => {
+      if (loginError) loginError.textContent = "";
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: email.value,
+        password: password.value
+      });
+      if (error) {
+        if (loginError) loginError.textContent = error.message;
+        return;
+      }
+      await showPortal(data.user);
+    };
+
+    logoutBtn.onclick = async () => {
+      await supabase.auth.signOut();
+      location.reload();
+    };
+
+    async function showPortal(user) {
+      CURRENT_USER = user;
+      IS_ADMIN = await checkAdmin(user.id);
+      MY_CREDS = await loadMyCreds(user.id);
+
+      login.classList.add("hidden");
+      portal.classList.remove("hidden");
+      if (userEmail) userEmail.textContent = user.email;
+
+      if (apprBtn) apprBtn.style.display = IS_ADMIN ? "inline-block" : "none";
+      if (usersBtn) usersBtn.style.display = IS_ADMIN ? "inline-block" : "none";
+
+      await showSchedule();
+    }
+
+    // ===== schedule =====
     async function showSchedule() {
-      setActiveNav(schedBtn);
+      if (schedBtn) setActiveNav(schedBtn);
 
       content.innerHTML = `
         <div class="row" style="justify-content:space-between; align-items:flex-end;">
           <div>
             <h3>Scheduling</h3>
             <div class="small">Claim shifts for approval. Approved shifts appear in “My Requests / Shifts”.</div>
-            <div class="small" style="margin-top:6px;">
-              Your role: <b>${esc(MY_CREDS.role || "Not set")}</b>
-            </div>
+            <div class="small" style="margin-top:6px;">Your role: <b>${esc(MY_CREDS.role || "Not set")}</b></div>
           </div>
           <span class="pill blue">${IS_ADMIN ? "Admin" : "Employee"}</span>
         </div>
@@ -250,7 +241,6 @@
 
           <div class="row" style="margin-top:12px;">
             <button id="postBtn">Post</button>
-            <div class="small">Crew size = how many employees can be approved for this shift.</div>
           </div>
           <div id="perr" class="error"></div>
         </div>` : ``}
@@ -259,19 +249,19 @@
       `;
 
       if (IS_ADMIN) {
-        document.getElementById("postBtn").onclick = async () => {
-          const perr = document.getElementById("perr");
+        $("postBtn").onclick = async () => {
+          const perr = $("perr");
           perr.textContent = "";
 
-          const title = document.getElementById("stitle").value.trim();
-          const startVal = document.getElementById("sstart").value;
-          const endVal = document.getElementById("send").value;
-          const where = document.getElementById("swhere").value.trim();
-          const crew = Math.max(1, parseInt(document.getElementById("screw").value || "1", 10));
-          const notes = (document.getElementById("snotes").value || "").trim();
-          const mapUrl = (document.getElementById("smap").value || "").trim();
-          const dirUrl = (document.getElementById("sdir").value || "").trim();
-          const requiredRole = (document.getElementById("srole").value || "").trim();
+          const title = $("stitle").value.trim();
+          const startVal = $("sstart").value;
+          const endVal = $("send").value;
+          const where = $("swhere").value.trim();
+          const crew = Math.max(1, parseInt($("screw").value || "1", 10));
+          const notes = ($("snotes").value || "").trim();
+          const mapUrl = ($("smap").value || "").trim();
+          const dirUrl = ($("sdir").value || "").trim();
+          const requiredRole = ($("srole").value || "").trim();
 
           if (!title || !startVal || !endVal) {
             perr.textContent = "Enter a title, start, and end time.";
@@ -301,7 +291,7 @@
     }
 
     async function loadShifts() {
-      const list = document.getElementById("list");
+      const list = $("list");
 
       const { data, error } = await supabase
         .from("shifts")
@@ -347,10 +337,7 @@
                 </div>
                 ${reqPills(s)}
               </div>
-
-              <div style="text-align:right;">
-                ${claimBtnHtml}
-              </div>
+              <div style="text-align:right;">${claimBtnHtml}</div>
             </div>
 
             ${renderLinkRow(s.google_map_url, s.directions_url)}
@@ -360,7 +347,6 @@
       }).join("") || `<div class="pill" style="margin-top:12px;">No shifts posted yet</div>`;
     }
 
-    // ===== Claim =====
     window.claimShift = async (shiftId) => {
       const { data: shift, error: sErr } = await supabase
         .from("shifts")
@@ -404,11 +390,10 @@
       await loadShifts();
     };
 
-    // ===== Nav wiring =====
+    // nav (schedule only for now)
     if (schedBtn) schedBtn.onclick = showSchedule;
-    // (Calendar/My/Announcements/Approvals/Users can be re-added after portal loads cleanly)
 
-    // ===== Auto login =====
+    // auto login
     const user = await getUser();
     if (user) await showPortal(user);
 
