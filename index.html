@@ -1,3 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>First Line EMS Employee Portal</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <style>
+    :root{
+      --bg:#f6f7fb;
+      --card:#ffffff;
+      --text:#111827;
+      --muted:#6b7280;
+      --line:#e5e7eb;
+      --shadow:0 10px 25px rgba(0,0,0,.07);
+      --brand:#0f172a;
+      --brand2:#111827;
+      --accent:#2563eb;
+      --accent2:#1d4ed8;
+      --danger:#b00020;
+      --ok:#0f766e;
+      --warn:#b45309;
+    }
+    *{box-sizing:border-box}
+    body { font-family: system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif; background:var(--bg); margin:0; color:var(--text); }
+    .container { max-width:980px; margin:40px auto; padding:20px; }
+    .card { background:var(--card); border-radius:16px; padding:22px; box-shadow:var(--shadow); border:1px solid var(--line); }
+    .hidden { display:none; }
+    .row { display:flex; gap:12px; flex-wrap:wrap; align-items:center; }
+    button {
+      padding:12px 16px; border-radius:12px; border:1px solid transparent;
+      background:linear-gradient(180deg,var(--brand),var(--brand2));
+      color:#fff; font-weight:900; cursor:pointer;
+      box-shadow:0 10px 18px rgba(17,24,39,.14);
+    }
+    button.secondary { background:#fff; color:var(--text); border-color:var(--line); box-shadow:none; font-weight:900; }
+    button.danger { background:linear-gradient(180deg,#b00020,#8a0018); }
+    button:disabled { opacity:.55; cursor:not-allowed; box-shadow:none; }
+
+    input, textarea, select {
+      padding:11px 12px; border-radius:12px; border:1px solid var(--line);
+      background:#fff; color:var(--text); outline:none;
+    }
+    input:focus, textarea:focus, select:focus{ border-color:rgba(37,99,235,.45); box-shadow:0 0 0 4px rgba(37,99,235,.12); }
+    textarea { width:100%; min-height:92px; resize:vertical; }
+
+    .error { color:var(--danger); font-weight:800; margin-top:8px; }
+    .pill {
+      background:#f3f4f6; padding:6px 12px; border-radius:999px; font-size:13px; font-weight:1000;
+      border:1px solid var(--line); display:inline-flex; align-items:center; gap:8px;
+    }
+    .pill.ok { background:rgba(15,118,110,.08); border-color:rgba(15,118,110,.25); color:var(--ok); }
+    .pill.blue { background:rgba(37,99,235,.08); border-color:rgba(37,99,235,.25); color:var(--accent2); }
+    .pill.warn { background:rgba(180,83,9,.10); border-color:rgba(180,83,9,.25); color:var(--warn); }
+
+    .debug { font-weight:900; margin-top:10px; color:var(--muted); }
+    hr { border:none; border-top:1px solid var(--line); margin:16px 0; }
+    .small { color:var(--muted); font-size:13px; }
+    .noteBox { margin-top:10px; padding:12px; border:1px solid var(--line); border-radius:14px; background:#fafafa; }
+    .noteTitle { font-weight:1000; margin-bottom:6px; }
+    label { font-weight:1000; display:block; margin:10px 0 6px; color:#111827; }
+    h2,h3,h4{margin:0 0 10px 0}
+
+    .topbar{
+      display:flex; justify-content:space-between; align-items:center; gap:14px;
+      margin-bottom:14px;
+    }
+    .brand{display:flex; gap:12px; align-items:center;}
+    .logo{
+      width:40px; height:40px; border-radius:14px;
+      background:radial-gradient(circle at 30% 30%, #60a5fa, #1d4ed8);
+      box-shadow:0 10px 20px rgba(37,99,235,.20);
+    }
+    .brandTitle{display:flex; flex-direction:column; gap:2px}
+    .brandTitle .name{font-weight:1000; letter-spacing:.2px}
+    .brandTitle .tag{font-size:13px; color:var(--muted); font-weight:800}
+
+    .nav{display:flex; gap:10px; flex-wrap:wrap; margin-top:10px;}
+    .nav button{
+      background:#fff; border:1px solid var(--line); color:var(--text); box-shadow:none; font-weight:1000;
+    }
+    .nav button.active{
+      border-color:rgba(37,99,235,.35);
+      box-shadow:0 0 0 4px rgba(37,99,235,.10);
+    }
+
+    .sectionCard{margin-top:14px; border-radius:16px;}
+    .grid5{
+      display:grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap:12px;
+      align-items:end;
+    }
+    .linkRow{
+      display:flex; gap:14px; flex-wrap:wrap; margin-top:10px;
+    }
+    .linkRow a{
+      display:inline-flex; align-items:center; gap:8px;
+      padding:10px 12px; border:1px solid var(--line); border-radius:12px;
+      background:#fff; box-shadow:none; font-weight:1000; color:var(--accent); text-decoration:none;
+    }
+    .linkRow a:hover{text-decoration:underline}
+    @media (max-width: 900px){
+      .grid5{grid-template-columns: 1fr 1fr}
+      .container{margin:20px auto}
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+
+  <!-- LOGIN -->
+  <div id="login" class="card">
+    <div class="topbar">
+      <div class="brand">
+        <div class="logo"></div>
+        <div class="brandTitle">
+          <div class="name">First Line EMS</div>
+          <div class="tag">Employee Portal</div>
+        </div>
+      </div>
+      <span class="pill blue">Secure Login</span>
+    </div>
+
+    <h2>Sign in</h2>
+    <div class="small">Use your employee account email + password.</div>
+
+    <div style="height:10px"></div>
+
+    <label for="email">Email</label>
+    <input id="email" placeholder="Email" autocomplete="username" style="width:100%;" />
+
+    <label for="password">Password</label>
+    <input id="password" type="password" placeholder="Password" autocomplete="current-password" style="width:100%;" />
+
+    <div style="height:12px"></div>
+    <div class="row">
+      <button id="loginBtn">Login</button>
+      <span id="debug" class="debug"></span>
+    </div>
+
+    <div id="loginError" class="error"></div>
+  </div>
+
+  <!-- PORTAL -->
+  <div id="portal" class="card hidden">
+    <div class="topbar">
+      <div class="brand">
+        <div class="logo"></div>
+        <div class="brandTitle">
+          <div class="name">First Line EMS</div>
+          <div class="tag">Employee Portal</div>
+        </div>
+      </div>
+
+      <div class="row">
+        <span id="userEmail" class="pill"></span>
+        <button id="logoutBtn" class="secondary">Logout</button>
+      </div>
+    </div>
+
+    <div class="nav">
+      <button id="schedBtn" class="active">Scheduling</button>
+      <button id="apprBtn">Approvals</button>
+      <button id="usersBtn">Users</button>
+    </div>
+
+    <div id="content"></div>
+  </div>
+
+</div>
+
 <script type="module">
 (async () => {
   const crash = (title, details) => {
@@ -10,35 +182,24 @@
   };
 
   try {
-    // Wait until DOM exists (fixes script-running-too-early)
     if (document.readyState === "loading") {
       await new Promise(r => document.addEventListener("DOMContentLoaded", r, { once:true }));
     }
 
-    // Simple ID checker
     const $ = (id) => document.getElementById(id);
     const must = ["login","portal","content","email","password","loginBtn","logoutBtn"];
 
     const missing = must.filter(id => !$(id));
     if (missing.length) {
-      // Show what we DO have, so we can match it fast
-      const found = must.filter(id => $(id)).join(", ") || "none";
-      crash(
-        "Portal Crash: HTML ID mismatch",
-        `Missing required IDs:\n- ${missing.join("\n- ")}\n\nFound from required set:\n- ${found}\n\nFix: your HTML must contain these exact IDs.\n(login, portal, content, email, password, loginBtn, logoutBtn)\n\nTip: Search in index.html for id="loginBtn" etc.`
-      );
+      crash("Portal Crash: HTML ID mismatch", `Missing required IDs:\n- ${missing.join("\n- ")}`);
       return;
     }
 
-    // Now import Supabase
     let createClient;
     try {
       ({ createClient } = await import("https://esm.sh/@supabase/supabase-js@2"));
     } catch (e) {
-      crash(
-        "Portal Crash: Supabase import failed",
-        String(e && (e.stack || e.message || e))
-      );
+      crash("Portal Crash: Supabase import failed", String(e && (e.stack || e.message || e)));
       return;
     }
 
@@ -69,7 +230,6 @@
     const loginError = $("loginError");
     const userEmail = $("userEmail");
 
-    // Optional nav
     const schedBtn = $("schedBtn");
     const apprBtn = $("apprBtn");
     const usersBtn = $("usersBtn");
@@ -206,6 +366,7 @@
       portal.classList.remove("hidden");
       if (userEmail) userEmail.textContent = user.email;
 
+      // hide admin tabs unless admin
       if (apprBtn) apprBtn.style.display = IS_ADMIN ? "inline-block" : "none";
       if (usersBtn) usersBtn.style.display = IS_ADMIN ? "inline-block" : "none";
 
@@ -213,7 +374,7 @@
     }
 
     async function showSchedule() {
-      if (schedBtn) setActiveNav(schedBtn);
+      setActiveNav(schedBtn);
 
       content.innerHTML = `
         <div class="row" style="justify-content:space-between; align-items:flex-end;">
@@ -304,8 +465,12 @@
       await loadShifts();
     };
 
-    if (schedBtn) schedBtn.onclick = showSchedule;
+    // nav wiring
+    schedBtn.onclick = showSchedule;
+    apprBtn.onclick = () => alert("Approvals UI not wired in this slim build yet.");
+    usersBtn.onclick = () => alert("Users UI not wired in this slim build yet.");
 
+    // auto login
     const user = await getUser();
     if (user) await showPortal(user);
 
@@ -314,3 +479,6 @@
   }
 })();
 </script>
+
+</body>
+</html>
