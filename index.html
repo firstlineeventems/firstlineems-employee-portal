@@ -249,23 +249,32 @@
     }
 
     async function checkAdmin(userId) {
-      const { data, error } = await supabase
-        .from("user_roles")
-        .select("is_admin")
-        .eq("user_id", userId)
-        .maybeSingle();
-      if (error) return false;
-      return !!data?.is_admin;
-    }
+  const { data, error } = await supabase
+    .from("user_roles")
+    .select("is_admin")
+    .or(`user_id.eq.${userId},auth_user_id.eq.${userId},roles_user_id.eq.${userId}`)
+    .maybeSingle();
 
-    async function loadMyCreds(userId) {
-      const { data } = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", userId)
-        .maybeSingle();
-      return { role: data?.role ?? null };
-    }
+  if (error) {
+    console.log("checkAdmin error:", error);
+    return false;
+  }
+  return !!data?.is_admin;
+}
+
+async function loadMyCreds(userId) {
+  const { data, error } = await supabase
+    .from("user_roles")
+    .select("role")
+    .or(`user_id.eq.${userId},auth_user_id.eq.${userId},roles_user_id.eq.${userId}`)
+    .maybeSingle();
+
+  if (error) {
+    console.log("loadMyCreds error:", error);
+    return { role: null };
+  }
+  return { role: data?.role ?? null };
+}
 
     function fmtDT(dt) {
       if (!dt) return "";
