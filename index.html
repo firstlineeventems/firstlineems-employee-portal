@@ -1,14 +1,51 @@
 <script type="module">
 (async () => {
+  const crash = (title, details) => {
+    document.body.innerHTML = `
+      <div style="padding:18px;font-family:ui-monospace,Menlo,Consolas,monospace;color:#b00020;">
+        <h2 style="margin:0 0 10px 0;">${title}</h2>
+        <pre style="white-space:pre-wrap;margin:0;">${details}</pre>
+      </div>
+    `;
+  };
+
   try {
-    const { createClient } = await import("https://esm.sh/@supabase/supabase-js@2");
+    // Wait until DOM exists (fixes script-running-too-early)
+    if (document.readyState === "loading") {
+      await new Promise(r => document.addEventListener("DOMContentLoaded", r, { once:true }));
+    }
+
+    // Simple ID checker
+    const $ = (id) => document.getElementById(id);
+    const must = ["login","portal","content","email","password","loginBtn","logoutBtn"];
+
+    const missing = must.filter(id => !$(id));
+    if (missing.length) {
+      // Show what we DO have, so we can match it fast
+      const found = must.filter(id => $(id)).join(", ") || "none";
+      crash(
+        "Portal Crash: HTML ID mismatch",
+        `Missing required IDs:\n- ${missing.join("\n- ")}\n\nFound from required set:\n- ${found}\n\nFix: your HTML must contain these exact IDs.\n(login, portal, content, email, password, loginBtn, logoutBtn)\n\nTip: Search in index.html for id="loginBtn" etc.`
+      );
+      return;
+    }
+
+    // Now import Supabase
+    let createClient;
+    try {
+      ({ createClient } = await import("https://esm.sh/@supabase/supabase-js@2"));
+    } catch (e) {
+      crash(
+        "Portal Crash: Supabase import failed",
+        String(e && (e.stack || e.message || e))
+      );
+      return;
+    }
 
     const supabase = createClient(
       "https://lnevuelwsiewxdrmgckh.supabase.co",
       "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxuZXZ1ZWx3c2lld3hkcm1nY2toIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA3MzMyNjgsImV4cCI6MjA4NjMwOTI2OH0.voDpAvnscFh9-e70-xV4UBxtcO-TwYbU6V0JRPUFFIs"
     );
-
-    const $ = (id) => document.getElementById(id);
 
     const esc = s => String(s ?? "").replace(/[&<>"']/g, m => ({
       "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"
@@ -22,28 +59,18 @@
 
     debug("JS loaded ✅");
 
-    // ---- Grab ONLY the truly required elements ----
     const login = $("login");
     const portal = $("portal");
     const content = $("content");
-
     const email = $("email");
     const password = $("password");
     const loginBtn = $("loginBtn");
     const logoutBtn = $("logoutBtn");
-
     const loginError = $("loginError");
     const userEmail = $("userEmail");
 
-    if (!login || !portal || !content) throw new Error("Missing #login, #portal, or #content in HTML.");
-    if (!email || !password || !loginBtn) throw new Error("Missing #email, #password, or #loginBtn in HTML.");
-    if (!logoutBtn) throw new Error("Missing #logoutBtn in HTML.");
-
-    // Optional nav buttons (won't crash if missing)
+    // Optional nav
     const schedBtn = $("schedBtn");
-    const calBtn = $("calBtn");
-    const myBtn = $("myBtn");
-    const annBtn = $("annBtn");
     const apprBtn = $("apprBtn");
     const usersBtn = $("usersBtn");
 
@@ -52,8 +79,7 @@
     let MY_CREDS = { role: null };
 
     function setActiveNav(btn){
-      [schedBtn, calBtn, myBtn, annBtn, apprBtn, usersBtn].filter(Boolean)
-        .forEach(b => b.classList.remove("active"));
+      [schedBtn, apprBtn, usersBtn].filter(Boolean).forEach(b => b.classList.remove("active"));
       if (btn) btn.classList.add("active");
     }
 
@@ -107,12 +133,6 @@
       return `<div class="linkRow">${a.join("")}</div>`;
     }
 
-    function reqPills(s) {
-      const pills = [];
-      if (s.required_role) pills.push(`<span class="pill warn">Req: ${esc(s.required_role)}</span>`);
-      return pills.length ? `<div class="row" style="margin-top:10px;">${pills.join("")}</div>` : "";
-    }
-
     function canUserClaimShift(s) {
       if (s.required_role) {
         const need = String(s.required_role).trim().toLowerCase();
@@ -158,7 +178,7 @@
       return `${ac}/${cs} filled`;
     }
 
-    // ===== auth =====
+    // ---- Auth buttons ----
     loginBtn.onclick = async () => {
       if (loginError) loginError.textContent = "";
       const { data, error } = await supabase.auth.signInWithPassword({
@@ -192,7 +212,6 @@
       await showSchedule();
     }
 
-    // ===== schedule =====
     async function showSchedule() {
       if (schedBtn) setActiveNav(schedBtn);
 
@@ -200,98 +219,19 @@
         <div class="row" style="justify-content:space-between; align-items:flex-end;">
           <div>
             <h3>Scheduling</h3>
-            <div class="small">Claim shifts for approval. Approved shifts appear in “My Requests / Shifts”.</div>
+            <div class="small">Claim shifts for approval.</div>
             <div class="small" style="margin-top:6px;">Your role: <b>${esc(MY_CREDS.role || "Not set")}</b></div>
           </div>
           <span class="pill blue">${IS_ADMIN ? "Admin" : "Employee"}</span>
         </div>
-
-        ${IS_ADMIN ? `
-        <div class="card sectionCard">
-          <h4>Post Shift</h4>
-
-          <div class="grid5">
-            <div><label>Title</label><input id="stitle" style="width:100%;" /></div>
-            <div><label>Start</label><input id="sstart" type="datetime-local" style="width:100%;" /></div>
-            <div><label>End</label><input id="send" type="datetime-local" style="width:100%;" /></div>
-            <div><label>Where</label><input id="swhere" style="width:100%;" /></div>
-            <div><label>Crew Size</label><input id="screw" type="number" min="1" value="1" style="width:100%;" /></div>
-          </div>
-
-          <div class="row" style="margin-top:10px;">
-            <div style="flex:1; min-width:240px;">
-              <label>Required Role (optional)</label>
-              <select id="srole" style="width:100%;">
-                <option value="">None</option>
-                <option value="EMT">EMT</option>
-                <option value="EMR">EMR</option>
-                <option value="Supervisor">Supervisor</option>
-              </select>
-            </div>
-          </div>
-
-          <label>Event Map Link (optional)</label>
-          <input id="smap" style="width:100%;" />
-
-          <label>Directions Link (optional)</label>
-          <input id="sdir" style="width:100%;" />
-
-          <label>Shift Notes / Instructions</label>
-          <textarea id="snotes"></textarea>
-
-          <div class="row" style="margin-top:12px;">
-            <button id="postBtn">Post</button>
-          </div>
-          <div id="perr" class="error"></div>
-        </div>` : ``}
-
         <div id="list" style="margin-top:14px; display:grid; gap:12px;"></div>
       `;
-
-      if (IS_ADMIN) {
-        $("postBtn").onclick = async () => {
-          const perr = $("perr");
-          perr.textContent = "";
-
-          const title = $("stitle").value.trim();
-          const startVal = $("sstart").value;
-          const endVal = $("send").value;
-          const where = $("swhere").value.trim();
-          const crew = Math.max(1, parseInt($("screw").value || "1", 10));
-          const notes = ($("snotes").value || "").trim();
-          const mapUrl = ($("smap").value || "").trim();
-          const dirUrl = ($("sdir").value || "").trim();
-          const requiredRole = ($("srole").value || "").trim();
-
-          if (!title || !startVal || !endVal) {
-            perr.textContent = "Enter a title, start, and end time.";
-            return;
-          }
-
-          const { error } = await supabase.from("shifts").insert({
-            title,
-            start_time: startVal,
-            end_time: endVal,
-            shift_where: where,
-            crew_size: crew,
-            notes,
-            google_map_url: mapUrl || null,
-            directions_url: dirUrl || null,
-            required_role: requiredRole || null,
-            created_by: CURRENT_USER.id
-          });
-
-          if (error) return (perr.textContent = error.message);
-          alert("Posted ✅");
-          await loadShifts();
-        };
-      }
-
       await loadShifts();
     }
 
     async function loadShifts() {
       const list = $("list");
+      if (!list) return;
 
       const { data, error } = await supabase
         .from("shifts")
@@ -305,8 +245,9 @@
 
       const shifts = data || [];
       const shiftIds = shifts.map(s => s.id);
+
       const approvedCounts = await getApprovedCountsForShiftIds(shiftIds);
-      const myStatus = await getMyClaimStatusMapForShiftIds(shiftIds);
+      const myStatus = CURRENT_USER ? await getMyClaimStatusMapForShiftIds(shiftIds) : {};
 
       list.innerHTML = shifts.map(s => {
         const cs = Math.max(1, Number(s.crew_size || 1));
@@ -318,36 +259,29 @@
 
         let claimBtnHtml = "";
         if (full) claimBtnHtml = `<span class="pill">Filled</span>`;
-        else if (mine === "pending") claimBtnHtml = `<span class="pill blue">Pending approval</span>`;
-        else if (mine === "approved") claimBtnHtml = `<span class="pill ok">You’re approved</span>`;
-        else if (mine === "removal_requested") claimBtnHtml = `<span class="pill">Removal requested</span>`;
+        else if (mine === "pending") claimBtnHtml = `<span class="pill blue">Pending</span>`;
+        else if (mine === "approved") claimBtnHtml = `<span class="pill ok">Approved</span>`;
         else if (!gate.ok) claimBtnHtml = `<button disabled>Claim</button><div class="small" style="margin-top:6px;">${esc(gate.reason)}</div>`;
         else claimBtnHtml = `<button onclick="claimShift('${s.id}')">Claim</button>`;
 
         return `
           <div class="card">
-            <div class="row" style="justify-content:space-between; align-items:flex-start;">
-              <div style="min-width:240px;">
-                <div style="font-weight:1000; font-size:16px;">${esc(s.title)}</div>
-                <div class="small" style="margin-top:6px;">🕒 ${fmtDT(s.start_time)}${s.end_time ? ` – ${fmtDT(s.end_time)}` : ""}</div>
-                ${s.shift_where ? `<div style="margin-top:8px;"><span class="pill">${esc(s.shift_where)}</span></div>` : ``}
-                <div style="margin-top:8px;">
-                  <span class="pill" style="margin-right:8px;">${slotsText(ac, cs)}</span>
-                  ${full ? `<span class="pill">Full</span>` : `<span class="pill ok">Open</span>`}
-                </div>
-                ${reqPills(s)}
-              </div>
-              <div style="text-align:right;">${claimBtnHtml}</div>
-            </div>
-
+            <div style="font-weight:1000;">${esc(s.title)}</div>
+            <div class="small" style="margin-top:6px;">🕒 ${fmtDT(s.start_time)}${s.end_time ? ` – ${fmtDT(s.end_time)}` : ""}</div>
             ${renderLinkRow(s.google_map_url, s.directions_url)}
             ${renderNotesBox(s.notes)}
+            <div style="margin-top:10px;">
+              <span class="pill">${slotsText(ac, cs)}</span>
+              <span style="margin-left:8px;">${claimBtnHtml}</span>
+            </div>
           </div>
         `;
-      }).join("") || `<div class="pill" style="margin-top:12px;">No shifts posted yet</div>`;
+      }).join("") || `<div class="pill">No shifts posted yet</div>`;
     }
 
     window.claimShift = async (shiftId) => {
+      if (!CURRENT_USER) return alert("Log in first.");
+
       const { data: shift, error: sErr } = await supabase
         .from("shifts")
         .select("id,crew_size,required_role")
@@ -358,26 +292,6 @@
       const gate = canUserClaimShift(shift);
       if (!gate.ok) return alert("Cannot claim: " + gate.reason);
 
-      const { data: mine } = await supabase
-        .from("shift_claims")
-        .select("id,status")
-        .eq("shift_id", shiftId)
-        .eq("user_id", CURRENT_USER.id)
-        .in("status", ["pending","approved","removal_requested"])
-        .limit(1);
-
-      if (mine && mine.length) return alert("You already have a request for this shift.");
-
-      const { data: approvedRows } = await supabase
-        .from("shift_claims")
-        .select("id")
-        .eq("shift_id", shiftId)
-        .eq("status", "approved");
-
-      const cs = Math.max(1, Number(shift.crew_size || 1));
-      const ac = (approvedRows || []).length;
-      if (ac >= cs) return alert("This shift is already filled.");
-
       const { error } = await supabase.from("shift_claims").insert({
         shift_id: shiftId,
         user_id: CURRENT_USER.id,
@@ -386,25 +300,17 @@
       });
       if (error) return alert(error.message);
 
-      alert("Claim sent for approval.");
+      alert("Claim sent ✅");
       await loadShifts();
     };
 
-    // nav (schedule only for now)
     if (schedBtn) schedBtn.onclick = showSchedule;
 
-    // auto login
     const user = await getUser();
     if (user) await showPortal(user);
 
   } catch (err) {
-    document.body.innerHTML = `
-      <div style="padding:20px;font-family:monospace;color:#b00020;">
-        <h2>Portal Crash</h2>
-        <pre>${String(err && (err.stack || err.message || err))}</pre>
-      </div>
-    `;
-    console.error(err);
+    crash("Portal Crash", String(err && (err.stack || err.message || err)));
   }
 })();
 </script>
