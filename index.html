@@ -73,16 +73,13 @@ async function getUser() {
 async function checkAdmin(userId) {
   const { data, error } = await supabase
     .from("user_roles")
-    .select("is_admin")
+    .select("*")
     .eq("user_id", userId)
     .maybeSingle();
 
-  if (error) {
-    console.error("Admin check error:", error);
-    return false;
-  }
+  console.log("ADMIN CHECK:", data, error);
 
-  return !!data?.is_admin;
+  return data && data.is_admin === true;
 }
 
 loginBtn.onclick = async () => {
