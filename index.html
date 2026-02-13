@@ -79,7 +79,7 @@ async function checkAdmin(userId) {
     .from("user_roles")
     .select("is_admin")
     .eq("user_id", userId)
-    .single();
+    .maybeSingle();
   return !!data?.is_admin;
 }
 
