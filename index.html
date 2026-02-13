@@ -57,7 +57,7 @@ import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js
 
 const supabase = createClient(
   "https://lnevuelwsiewxdrmgckh.supabase.co",
-  "YOUR_ANON_KEY_HERE"
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxuZXZ1ZWx3c2lld3hkcm1nY2toIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA3MzMyNjgsImV4cCI6MjA4NjMwOTI2OH0.voDpAvnscFh9-e70-xV4UBxtcO-TwYbU6V0JRPUFFIs"
 );
 
 const esc = s => String(s ?? "").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"}[m]));
